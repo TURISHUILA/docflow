@@ -496,7 +496,7 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
     return {"success": True, "pdf_id": consolidated.id}
 
 @api_router.get("/pdfs/{pdf_id}/download")
-async def download_pdf(pdf_id: str, authorization: str):
+async def download_pdf(pdf_id: str, authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     pdf = await db.consolidated_pdfs.find_one({"id": pdf_id}, {"_id": 0})
