@@ -280,6 +280,18 @@ async def upload_documents(
 ):
     user = await get_current_user(authorization)
     
+    # Validaciones
+    MAX_FILES = 20
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    MAX_TOTAL_SIZE = 100 * 1024 * 1024  # 100MB
+    
+    if len(files) > MAX_FILES:
+        raise HTTPException(status_code=400, detail=f"Máximo {MAX_FILES} archivos permitidos por carga")
+    
+    total_size = sum(file.size for file in files if hasattr(file, 'size'))
+    if total_size > MAX_TOTAL_SIZE:
+        raise HTTPException(status_code=400, detail="El tamaño total excede 100MB")
+    
     uploaded_docs = []
     
     for file in files:
