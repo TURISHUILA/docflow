@@ -1,0 +1,244 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import axios from 'axios';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
+import { FolderArchive, Download, Plus, FileText } from 'lucide-react';
+
+const statusConfig = {
+  cargado: { label: 'Cargado', color: 'text-sky-600 bg-sky-50 border-sky-200' },
+  en_proceso: { label: 'En Proceso', color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  terminado: { label: 'Terminado', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+  revision: { label: 'Revisión', color: 'text-rose-600 bg-rose-50 border-rose-200' },
+};
+
+const Batches = () => {
+  const { token, API } = useAuth();
+  const [batches, setBatches] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [selectedDocs, setSelectedDocs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [generating, setGenerating] = useState({});
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    fetchBatches();
+    fetchDocuments();
+  }, []);
+
+  const fetchBatches = async () => {
+    try {
+      const response = await axios.get(`${API}/batches/list`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setBatches(response.data.batches);
+    } catch (error) {
+      toast.error('Error al cargar lotes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await axios.get(`${API}/documents/list?status=en_proceso`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDocuments(response.data.documents.filter(doc => !doc.batch_id));
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    }
+  };
+
+  const createBatch = async () => {
+    if (selectedDocs.length === 0) {
+      toast.error('Selecciona al menos un documento');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await axios.post(
+        `${API}/batches/create`,
+        { document_ids: selectedDocs },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Lote creado exitosamente');
+      setSelectedDocs([]);
+      setDialogOpen(false);
+      fetchBatches();
+      fetchDocuments();
+    } catch (error) {
+      toast.error('Error al crear lote');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const generatePDF = async (batchId) => {
+    setGenerating(prev => ({ ...prev, [batchId]: true }));
+    try {
+      await axios.post(
+        `${API}/batches/${batchId}/generate-pdf`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('PDF consolidado generado');
+      fetchBatches();
+    } catch (error) {
+      toast.error('Error al generar PDF');
+    } finally {
+      setGenerating(prev => ({ ...prev, [batchId]: false }));
+    }
+  };
+
+  const downloadPDF = async (pdfId, filename) => {
+    try {
+      const response = await axios.get(`${API}/pdfs/${pdfId}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('PDF descargado');
+    } catch (error) {
+      toast.error('Error al descargar PDF');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-zinc-500">Cargando lotes...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6" data-testid="batches-page">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">Lotes</h1>
+          <p className="text-zinc-500 mt-2">Agrupa documentos y genera PDFs consolidados</p>
+        </div>
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="create-batch-button" className="bg-zinc-900 hover:bg-zinc-800">
+              <Plus size={18} className="mr-2" />
+              Nuevo Lote
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Crear Nuevo Lote</DialogTitle>
+              <DialogDescription>
+                Selecciona los documentos para crear un lote de procesamiento
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {documents.length === 0 ? (
+                <p className="text-center py-8 text-zinc-500">No hay documentos disponibles</p>
+              ) : (
+                documents.map(doc => (
+                  <div key={doc.id} className="flex items-center gap-3 p-3 border border-zinc-200 rounded-md hover:bg-zinc-50">
+                    <Checkbox
+                      checked={selectedDocs.includes(doc.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedDocs([...selectedDocs, doc.id]);
+                        } else {
+                          setSelectedDocs(selectedDocs.filter(id => id !== doc.id));
+                        }
+                      }}
+                    />
+                    <FileText size={18} className="text-zinc-400" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-zinc-900">{doc.filename}</p>
+                      <p className="text-xs text-zinc-500">{doc.tipo_documento}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <Button
+              onClick={createBatch}
+              disabled={creating || selectedDocs.length === 0}
+              className="w-full bg-zinc-900 hover:bg-zinc-800"
+            >
+              {creating ? 'Creando...' : `Crear Lote (${selectedDocs.length} documentos)`}
+            </Button>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {batches.length === 0 ? (
+        <Card className="border-zinc-200">
+          <CardContent className="py-12 text-center">
+            <FolderArchive size={48} className="mx-auto text-zinc-300 mb-3" />
+            <p className="text-zinc-500">No hay lotes creados</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {batches.map(batch => (
+            <Card key={batch.id} className="border-zinc-200">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-xl">Lote {batch.id.substring(0, 8)}</CardTitle>
+                    <CardDescription className="mt-1">
+                      {batch.documentos.length} documentos - Creado: {new Date(batch.created_at).toLocaleDateString()}
+                    </CardDescription>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={statusConfig[batch.status]?.color || ''}
+                  >
+                    {statusConfig[batch.status]?.label || batch.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!batch.pdf_generado_id ? (
+                  <Button
+                    onClick={() => generatePDF(batch.id)}
+                    disabled={generating[batch.id]}
+                    className="w-full bg-zinc-900 hover:bg-zinc-800"
+                    data-testid={`generate-pdf-${batch.id}`}
+                  >
+                    {generating[batch.id] ? 'Generando...' : 'Generar PDF Consolidado'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => downloadPDF(batch.pdf_generado_id, `consolidado_${batch.id}.pdf`)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    data-testid={`download-pdf-${batch.id}`}
+                  >
+                    <Download size={18} className="mr-2" />
+                    Descargar PDF
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Batches;
