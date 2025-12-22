@@ -176,7 +176,7 @@ class DocFlowAPITester:
             "POST",
             "batches/create",
             200,
-            data={"document_ids": self.uploaded_docs}
+            data=self.uploaded_docs  # Send as direct list
         )
         
         if success and 'id' in response:
