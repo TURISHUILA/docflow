@@ -418,7 +418,7 @@ async def list_batches(authorization: str = Header(None)):
     return {"batches": batches}
 
 @api_router.post("/batches/{batch_id}/generate-pdf")
-async def generate_consolidated_pdf(batch_id: str, authorization: str):
+async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
