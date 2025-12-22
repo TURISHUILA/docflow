@@ -28,6 +28,7 @@ const Documents = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [analyzing, setAnalyzing] = useState({});
+  const [processingAll, setProcessingAll] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
