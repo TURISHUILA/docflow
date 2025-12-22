@@ -295,8 +295,15 @@ async def upload_documents(
     uploaded_docs = []
     
     for file in files:
-        # Guardar archivo en MongoDB GridFS
+        # Validar tamaño individual
         file_data = await file.read()
+        if len(file_data) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"El archivo {file.filename} excede el tamaño máximo de 10MB"
+            )
+        
+        # Guardar archivo en MongoDB GridFS
         file_id = str(uuid.uuid4())
         
         # Guardar temporalmente para análisis
