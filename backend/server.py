@@ -555,7 +555,7 @@ async def toggle_user_active(user_id: str, authorization: str = Header(None)):
 
 # Audit Logs
 @api_router.get("/audit/logs")
-async def get_audit_logs(authorization: str, limit: int = 100):
+async def get_audit_logs(authorization: str = Header(None), limit: int = 100):
     user = await get_current_user(authorization)
     
     if user.role not in [UserRole.ADMIN, UserRole.REVISOR]:
