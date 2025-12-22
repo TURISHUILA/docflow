@@ -512,7 +512,7 @@ async def download_pdf(pdf_id: str, authorization: str = Header(None)):
     )
 
 @api_router.get("/pdfs/list")
-async def list_pdfs(authorization: str):
+async def list_pdfs(authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     pdfs = await db.consolidated_pdfs.find({}, {"_id": 0, "pdf_data": 0}).to_list(1000)
