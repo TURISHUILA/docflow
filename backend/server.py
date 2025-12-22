@@ -385,7 +385,7 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
 @api_router.post("/batches/create")
 async def create_batch(
     document_ids: List[str],
-    authorization: str
+    authorization: str = Header(None)
 ):
     user = await get_current_user(authorization)
     
