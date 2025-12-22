@@ -66,6 +66,43 @@ const Documents = () => {
     }
   };
 
+  const processAllLoaded = async () => {
+    const loadedDocs = documents.filter(doc => doc.status === 'cargado');
+    
+    if (loadedDocs.length === 0) {
+      toast.error('No hay documentos cargados para procesar');
+      return;
+    }
+
+    setProcessingAll(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    toast.info(`Procesando ${loadedDocs.length} documentos...`);
+
+    for (const doc of loadedDocs) {
+      try {
+        await axios.post(`${API}/documents/${doc.id}/analyze`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        successCount++;
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    setProcessingAll(false);
+    
+    if (successCount > 0) {
+      toast.success(`${successCount} documentos procesados exitosamente`);
+    }
+    if (errorCount > 0) {
+      toast.error(`${errorCount} documentos fallaron`);
+    }
+    
+    fetchDocuments();
+  };
+
   const filteredDocs = documents;
 
   if (loading) {
