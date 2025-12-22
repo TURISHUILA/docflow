@@ -641,7 +641,7 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
     story.append(Paragraph("Este documento fue generado automáticamente mediante análisis de IA (GPT-5.2)", styles['Normal']))
     
     # Construir PDF
-    doc.build(story)
+    pdf_doc.build(story)
     pdf_data = pdf_buffer.getvalue()
     
     # Guardar metadata del PDF consolidado
