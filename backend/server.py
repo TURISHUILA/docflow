@@ -223,7 +223,7 @@ async def analyze_document_with_gpt(file_path: str, mime_type: str) -> Dict[str,
 
 # Auth Endpoints
 @api_router.post("/auth/register", response_model=User)
-async def register(user_data: UserCreate, authorization: str = None):
+async def register(user_data: UserCreate, authorization: str = Header(None)):
     # Solo admin puede crear usuarios
     current_user = await get_current_user(authorization) if authorization else None
     if current_user and current_user.role != UserRole.ADMIN:
