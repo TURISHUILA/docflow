@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Consolidado con IA - DocFlow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.3);
+            padding: 50px;
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 10px 30px rgba(72, 187, 120, 0.3);
+        }
+        
+        .icon svg {
+            width: 50px;
+            height: 50px;
+            fill: white;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #48bb78;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+        
+        h1 {
+            color: #1a202c;
+            font-size: 36px;
+            margin-bottom: 12px;
+            font-weight: 800;
+        }
+        
+        .subtitle {
+            color: #718096;
+            font-size: 18px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-left: 5px solid #48bb78;
+            padding: 24px;
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+        
+        .highlight-box h3 {
+            color: #2d3748;
+            font-size: 18px;
+            margin-bottom: 16px;
+            font-weight: 700;
+        }
+        
+        .highlight-box ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .highlight-box li {
+            color: #4a5568;
+            font-size: 15px;
+            margin-bottom: 10px;
+            padding-left: 28px;
+            position: relative;
+        }
+        
+        .highlight-box li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #48bb78;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .pdf-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .info-card {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .info-card .label {
+            color: #718096;
+            font-size: 13px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .info-card .value {
+            color: #1a202c;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .download-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            color: #667eea;
+            padding: 18px 40px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 700;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .download-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: #667eea;
+        }
+        
+        .tech-note {
+            background: #edf2f7;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .tech-note p {
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .tech-note strong {
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+                    <path d="M8 16h8v1H8zm0-3h8v1H8zm0-3h5v1H8z"/>
+                </svg>
+            </div>
+            
+            <div class="badge">✓ ANÁLISIS COMPLETO CON IA</div>
+            
+            <h1>Reporte Consolidado de Pago</h1>
+            <p class="subtitle">
+                Documento inteligente generado automáticamente con GPT-5.2<br/>
+                que analiza, correlaciona y valida información de pagos
+            </p>
+        </div>
+
+        <div class="highlight-box">
+            <h3>🤖 Lo que hace la Inteligencia Artificial:</h3>
+            <ul>
+                <li>Lee y extrae información de cada PDF/imagen</li>
+                <li>Identifica valores, fechas, terceros, conceptos y referencias</li>
+                <li>Correlaciona documentos del mismo pago</li>
+                <li>Valida consistencia entre todos los documentos</li>
+                <li>Genera un reporte consolidado profesional</li>
+                <li>Detecta alertas y discrepancias automáticamente</li>
+            </ul>
+        </div>
+
+        <div class="pdf-info">
+            <div class="info-card">
+                <div class="label">Páginas</div>
+                <div class="value">3</div>
+            </div>
+            <div class="info-card">
+                <div class="label">Documentos</div>
+                <div class="value">4</div>
+            </div>
+            <div class="info-card">
+                <div class="label">Valor</div>
+                <div class="value">$5M</div>
+            </div>
+        </div>
+
+        <div class="download-section">
+            <h2 style="color: white; margin-bottom: 20px;">Descargar PDF de Ejemplo</h2>
+            <a href="/downloads/EJEMPLO_REPORTE_CONSOLIDADO_IA.pdf" download class="download-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                </svg>
+                Descargar Reporte (PDF)
+            </a>
+        </div>
+
+        <div class="tech-note">
+            <p>
+                <strong>Este es un PDF de EJEMPLO</strong> que muestra cómo se vería el reporte consolidado 
+                con información real extraída por GPT-5.2. El sistema analiza automáticamente:<br/>
+                <br/>
+                📄 Comprobante de Egreso • 📋 Cuenta por Pagar • 🧾 Factura • 💳 Soporte de Pago
+                <br/><br/>
+                <strong>Incluye:</strong> Resumen ejecutivo, detalle completo de cada documento con datos extraídos, 
+                validaciones automáticas de consistencia, correlación bancaria, y recomendación final.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
