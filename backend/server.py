@@ -141,7 +141,9 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(authorization: str = None) -> User:
+from fastapi import Header
+
+async def get_current_user(authorization: str = Header(None)) -> User:
     if not authorization or not authorization.startswith('Bearer '):
         raise HTTPException(status_code=401, detail="No autorizado")
     
