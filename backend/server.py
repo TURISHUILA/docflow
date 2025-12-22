@@ -468,7 +468,7 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     
     pdf_buffer = io.BytesIO()
-    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    pdf_doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
     story = []
     styles = getSampleStyleSheet()
     
