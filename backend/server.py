@@ -521,7 +521,7 @@ async def list_pdfs(authorization: str = Header(None)):
 
 # User Management (Admin only)
 @api_router.get("/users/list")
-async def list_users(authorization: str):
+async def list_users(authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     if user.role != UserRole.ADMIN:
