@@ -276,7 +276,7 @@ async def get_me(authorization: str = Header(None)):
 async def upload_documents(
     files: List[UploadFile] = File(...),
     tipo_documento: str = Form(...),
-    authorization: str = None
+    authorization: str = Header(None)
 ):
     user = await get_current_user(authorization)
     
