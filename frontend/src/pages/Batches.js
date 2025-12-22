@@ -195,49 +195,72 @@ const Batches = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
-          {batches.map(batch => (
-            <Card key={batch.id} className="border-zinc-200">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-xl">Lote {batch.id.substring(0, 8)}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {batch.documentos.length} documentos - Creado: {new Date(batch.created_at).toLocaleDateString()}
-                    </CardDescription>
+        <>
+          <div className="grid grid-cols-1 gap-6">
+            {batches.map(batch => (
+              <Card key={batch.id} className="border-zinc-200">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-xl">Lote {batch.id.substring(0, 8)}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {batch.documentos.length} documentos - Creado: {new Date(batch.created_at).toLocaleDateString()}
+                      </CardDescription>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={statusConfig[batch.status]?.color || ''}
+                    >
+                      {statusConfig[batch.status]?.label || batch.status}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={statusConfig[batch.status]?.color || ''}
-                  >
-                    {statusConfig[batch.status]?.label || batch.status}
-                  </Badge>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {!batch.pdf_generado_id ? (
+                    <Button
+                      onClick={() => generatePDF(batch.id)}
+                      disabled={generating[batch.id]}
+                      className="w-full bg-zinc-900 hover:bg-zinc-800"
+                      data-testid={`generate-pdf-${batch.id}`}
+                    >
+                      {generating[batch.id] ? 'Generando...' : 'Generar PDF Consolidado'}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => downloadPDF(batch.pdf_generado_id, `consolidado_${batch.id}.pdf`)}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                      data-testid={`download-pdf-${batch.id}`}
+                    >
+                      <Download size={18} className="mr-2" />
+                      Descargar PDF
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Botón para ver todos los PDFs */}
+          <Card className="border-emerald-200 bg-emerald-50/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold text-emerald-900 mb-1">Ver todos los PDFs consolidados</h3>
+                  <p className="text-sm text-emerald-700">
+                    Accede a todos los documentos consolidados generados en una vista optimizada
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {!batch.pdf_generado_id ? (
-                  <Button
-                    onClick={() => generatePDF(batch.id)}
-                    disabled={generating[batch.id]}
-                    className="w-full bg-zinc-900 hover:bg-zinc-800"
-                    data-testid={`generate-pdf-${batch.id}`}
-                  >
-                    {generating[batch.id] ? 'Generando...' : 'Generar PDF Consolidado'}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => downloadPDF(batch.pdf_generado_id, `consolidado_${batch.id}.pdf`)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                    data-testid={`download-pdf-${batch.id}`}
-                  >
-                    <Download size={18} className="mr-2" />
-                    Descargar PDF
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <Button
+                  onClick={() => navigate('/pdfs')}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white flex-shrink-0"
+                >
+                  <FileText size={18} className="mr-2" />
+                  Ver PDFs
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );
