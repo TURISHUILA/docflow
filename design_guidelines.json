@@ -1,0 +1,157 @@
+{
+  "identity": {
+    "persona": "E1",
+    "philosophy": "Swiss Utility - Function is Beauty. High contrast, precision, and clarity.",
+    "principles": [
+      "Fusion over Imitation: Mix Fintech precision with Swiss Poster aesthetics.",
+      "Content is King: Data legibility is the top priority.",
+      "Negative Space: Use whitespace to group related data, not lines.",
+      "Contrast: Use weight and color to guide the eye, not just size."
+    ]
+  },
+  "typography": {
+    "primary_font": "Manrope",
+    "secondary_font": "IBM Plex Sans",
+    "usage": {
+      "headings": "Manrope, font-semibold or font-bold, tracking-tight",
+      "body": "IBM Plex Sans, font-normal, leading-relaxed",
+      "data_tables": "IBM Plex Sans, font-medium, tabular-nums",
+      "labels": "IBM Plex Sans, uppercase, tracking-wider, text-xs, font-semibold"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl",
+      "h2": "text-3xl md:text-4xl",
+      "h3": "text-2xl",
+      "body": "text-base",
+      "small": "text-sm",
+      "tiny": "text-xs"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "name": "Obsidian",
+        "hex": "#18181b",
+        "tailwind": "bg-zinc-950 text-white"
+      },
+      "secondary": {
+        "name": "Slate",
+        "hex": "#f8fafc",
+        "tailwind": "bg-slate-50 text-slate-900"
+      },
+      "accent": {
+        "name": "Electric Blue",
+        "hex": "#0ea5e9",
+        "tailwind": "text-sky-500"
+      }
+    },
+    "status": {
+      "success": {
+        "color": "Emerald",
+        "hex": "#10b981",
+        "tailwind": "text-emerald-500 bg-emerald-50 border-emerald-200",
+        "meaning": "Terminado / Validado"
+      },
+      "warning": {
+        "color": "Amber",
+        "hex": "#f59e0b",
+        "tailwind": "text-amber-500 bg-amber-50 border-amber-200",
+        "meaning": "En Proceso / Alerta"
+      },
+      "error": {
+        "color": "Rose",
+        "hex": "#f43f5e",
+        "tailwind": "text-rose-500 bg-rose-50 border-rose-200",
+        "meaning": "Revisión / Error"
+      },
+      "info": {
+        "color": "Sky",
+        "hex": "#0ea5e9",
+        "tailwind": "text-sky-500 bg-sky-50 border-sky-200",
+        "meaning": "Cargado / Nuevo"
+      }
+    },
+    "backgrounds": {
+      "main": "bg-white",
+      "sidebar": "bg-zinc-50 border-r border-zinc-200",
+      "card": "bg-white border border-zinc-200"
+    }
+  },
+  "layout": {
+    "grid_system": "The Control Room Grid",
+    "spacing": {
+      "container_padding": "p-6 md:p-8 lg:p-12",
+      "gap": "gap-6",
+      "section_spacing": "my-12"
+    },
+    "structure": {
+      "dashboard": "grid grid-cols-1 md:grid-cols-4 gap-6",
+      "sidebar": "fixed left-0 top-0 h-full w-64 hidden md:flex flex-col",
+      "main_content": "md:ml-64 min-h-screen"
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "Flat, 1px border (border-zinc-200), no shadow. Rounded-lg.",
+      "hover": "hover:border-zinc-300 transition-colors duration-200"
+    },
+    "buttons": {
+      "primary": "bg-zinc-900 text-white hover:bg-zinc-800 rounded-md px-4 py-2 font-medium shadow-sm",
+      "secondary": "bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 rounded-md px-4 py-2 font-medium",
+      "ghost": "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md px-3 py-1.5"
+    },
+    "inputs": {
+      "style": "bg-white border border-zinc-200 rounded-md px-3 py-2 focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all"
+    },
+    "tables": {
+      "style": "w-full text-sm text-left",
+      "header": "bg-zinc-50 text-zinc-500 uppercase tracking-wider font-semibold py-3 px-4",
+      "row": "border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors",
+      "cell": "py-3 px-4 text-zinc-700"
+    },
+    "upload_zone": {
+      "style": "border-2 border-dashed border-zinc-300 rounded-xl p-12 text-center hover:border-zinc-400 hover:bg-zinc-50 transition-all cursor-pointer bg-zinc-50/30"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-md bg-white/80 border-b border-white/20 (Use for sticky headers)",
+    "gradients": "None. Use solid colors and subtle background patterns (dot grid) if needed.",
+    "shadows": "Minimal. shadow-sm for dropdowns and modals only.",
+    "icons": "Lucide React (Stroke width 1.5px for elegance)"
+  },
+  "images": {
+    "login_background": {
+      "url": "https://images.pexels.com/photos/7233376/pexels-photo-7233376.jpeg",
+      "alt": "Minimalist abstract geometric white shapes",
+      "usage": "Full screen background for login page with overlay"
+    },
+    "avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1650784854945-264d5b0b6b07?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBkaXZlcnNlJTIwYnVzaW5lc3MlMjB0ZWFtJTIwcG9ydHJhaXRzfGVufDB8fHx8MTc2NjQwNzEwM3ww&ixlib=rb-4.1.0&q=85",
+        "alt": "Team member avatar 1"
+      },
+      {
+        "url": "https://images.pexels.com/photos/7640768/pexels-photo-7640768.jpeg",
+        "alt": "Team member avatar 2"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "1. SETUP: Install 'lucide-react', 'recharts', 'framer-motion', 'clsx', 'tailwind-merge'.",
+    "2. THEME: Update tailwind.config.js to use the defined color palette (Zinc, Emerald, Amber, Rose, Sky).",
+    "3. LAYOUT: Create a 'DashboardLayout' component with the fixed sidebar and responsive header.",
+    "4. COMPONENTS: Build 'StatCard', 'DocumentTable', 'StatusBadge', 'UploadDropzone' using the design rules.",
+    "5. PAGES: Implement 'Dashboard', 'Upload', 'Documents', 'Users' pages following the 'Control Room' grid.",
+    "6. INTERACTION: Add hover states to all interactive elements. Use 'sonner' for notifications.",
+    "7. ACCESSIBILITY: Ensure all text meets contrast ratios. Use semantic HTML."
+  ],
+  "universal_guidelines": [
+    "Do not use gradients for backgrounds.",
+    "Use 'Manrope' for all headings.",
+    "Use 'IBM Plex Sans' for all body text and data.",
+    "Ensure 24px+ padding inside cards.",
+    "Use 'data-testid' for all interactive elements.",
+    "Never use generic 'blue' for primary actions; use Zinc-900 (Black).",
+    "Status colors must be consistent: Green=Done, Yellow=In Progress, Red=Error, Blue=Uploaded."
+  ]
+}
