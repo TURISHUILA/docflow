@@ -33,6 +33,7 @@ function App() {
                     <Route path="/upload" element={<Upload />} />
                     <Route path="/documents" element={<Documents />} />
                     <Route path="/batches" element={<Batches />} />
+                    <Route path="/pdfs" element={<PDFs />} />
                     <Route path="/users" element={<Users />} />
                     <Route path="/audit" element={<Audit />} />
                   </Routes>
