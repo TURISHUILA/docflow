@@ -444,6 +444,11 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
     if not batch:
         raise HTTPException(status_code=404, detail="Lote no encontrado")
     
+    # Generar consecutivo automático
+    current_year = datetime.now(timezone.utc).year
+    count = await db.consolidated_pdfs.count_documents({}) + 1
+    consecutive_number = f"{current_year}-{count:04d}"  # Ej: 2025-0001
+    
     # Obtener documentos del lote
     docs = await db.documents.find(
         {"id": {"$in": batch['documentos']}},
