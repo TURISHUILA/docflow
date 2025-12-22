@@ -122,6 +122,27 @@ const Documents = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          {documents.filter(doc => doc.status === 'cargado').length > 0 && (
+            <Button
+              onClick={processAllLoaded}
+              disabled={processingAll}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              data-testid="process-all-button"
+            >
+              {processingAll ? (
+                <span className="flex items-center gap-2">
+                  <Play size={16} className="animate-pulse" />
+                  Procesando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Play size={16} />
+                  Procesar Cargados ({documents.filter(doc => doc.status === 'cargado').length})
+                </span>
+              )}
+            </Button>
+          )}
+          
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-48 border-zinc-200">
               <SelectValue />
