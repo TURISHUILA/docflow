@@ -87,7 +87,7 @@ const Upload = () => {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...newFiles]);
+      addFiles(newFiles);
     }
   };
 
