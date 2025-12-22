@@ -532,7 +532,7 @@ async def list_users(authorization: str = Header(None)):
     return {"users": users}
 
 @api_router.put("/users/{user_id}/toggle-active")
-async def toggle_user_active(user_id: str, authorization: str):
+async def toggle_user_active(user_id: str, authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     if user.role != UserRole.ADMIN:
