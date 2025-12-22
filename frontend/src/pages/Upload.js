@@ -46,9 +46,43 @@ const Upload = () => {
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const newFiles = Array.from(e.dataTransfer.files);
-      setFiles(prev => [...prev, ...newFiles]);
+      addFiles(newFiles);
     }
-  }, []);
+  }, [files]);
+
+  const addFiles = (newFiles) => {
+    // Validar cantidad máxima
+    if (files.length + newFiles.length > MAX_FILES) {
+      toast.error(`Máximo ${MAX_FILES} archivos permitidos por carga`);
+      return;
+    }
+
+    // Validar tamaño individual y total
+    let totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    const invalidFiles = [];
+    const validFiles = [];
+
+    for (const file of newFiles) {
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB excede 10MB)`);
+      } else if (totalSize + file.size > MAX_TOTAL_SIZE) {
+        toast.error('El tamaño total excede 100MB');
+        break;
+      } else {
+        validFiles.push(file);
+        totalSize += file.size;
+      }
+    }
+
+    if (invalidFiles.length > 0) {
+      toast.error(`Archivos muy grandes: ${invalidFiles.join(', ')}`);
+    }
+
+    if (validFiles.length > 0) {
+      setFiles(prev => [...prev, ...validFiles]);
+      toast.success(`${validFiles.length} archivo(s) agregado(s)`);
+    }
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
