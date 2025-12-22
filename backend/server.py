@@ -410,7 +410,7 @@ async def create_batch(
     return batch
 
 @api_router.get("/batches/list")
-async def list_batches(authorization: str):
+async def list_batches(authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     batches = await db.batches.find({}, {"_id": 0}).to_list(1000)
