@@ -325,7 +325,7 @@ async def upload_documents(
     return {"uploaded": len(uploaded_docs), "documents": uploaded_docs}
 
 @api_router.get("/documents/list")
-async def list_documents(authorization: str, status: Optional[str] = None):
+async def list_documents(authorization: str = Header(None), status: Optional[str] = None):
     user = await get_current_user(authorization)
     
     query = {}
