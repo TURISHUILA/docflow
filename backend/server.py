@@ -337,7 +337,7 @@ async def list_documents(authorization: str = Header(None), status: Optional[str
     return {"documents": docs}
 
 @api_router.post("/documents/{doc_id}/analyze")
-async def analyze_document(doc_id: str, authorization: str):
+async def analyze_document(doc_id: str, authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
