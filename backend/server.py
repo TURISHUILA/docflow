@@ -268,7 +268,7 @@ async def login(credentials: UserLogin):
     return Token(access_token=access_token, token_type="bearer", user=user)
 
 @api_router.get("/auth/me", response_model=User)
-async def get_me(authorization: str):
+async def get_me(authorization: str = Header(None)):
     return await get_current_user(authorization)
 
 # Document Endpoints
