@@ -498,6 +498,7 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
     
     # Título principal
     story.append(Paragraph("REPORTE CONSOLIDADO DE PAGO", title_style))
+    story.append(Paragraph(f"Consecutivo: {consecutive_number}", styles['Normal']))
     story.append(Paragraph(f"Lote: {batch_id[:8]}", styles['Normal']))
     story.append(Paragraph(f"Fecha de generación: {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
     story.append(Spacer(1, 0.3*inch))
