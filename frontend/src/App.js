@@ -5,6 +5,7 @@ import Dashboard from '@/pages/Dashboard';
 import Upload from '@/pages/Upload';
 import Documents from '@/pages/Documents';
 import Batches from '@/pages/Batches';
+import PDFs from '@/pages/PDFs';
 import Users from '@/pages/Users';
 import Audit from '@/pages/Audit';
 import Layout from '@/components/Layout';
