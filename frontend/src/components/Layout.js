@@ -30,6 +30,7 @@ const Layout = ({ children }) => {
     { icon: Upload, label: 'Cargar Documentos', path: '/upload', roles: ['admin', 'operativo'] },
     { icon: FileText, label: 'Documentos', path: '/documents', roles: ['admin', 'operativo', 'revisor'] },
     { icon: FolderArchive, label: 'Lotes', path: '/batches', roles: ['admin', 'operativo', 'revisor'] },
+    { icon: FileStack, label: 'PDFs Consolidados', path: '/pdfs', roles: ['admin', 'operativo', 'revisor'] },
     { icon: Users, label: 'Usuarios', path: '/users', roles: ['admin'] },
     { icon: FileStack, label: 'Auditoría', path: '/audit', roles: ['admin', 'revisor'] },
   ];
