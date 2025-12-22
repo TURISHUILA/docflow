@@ -567,7 +567,7 @@ async def get_audit_logs(authorization: str = Header(None), limit: int = 100):
 
 # Dashboard Stats
 @api_router.get("/dashboard/stats")
-async def get_dashboard_stats(authorization: str):
+async def get_dashboard_stats(authorization: str = Header(None)):
     user = await get_current_user(authorization)
     
     total_docs = await db.documents.count_documents({})
