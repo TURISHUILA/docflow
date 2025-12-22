@@ -16,6 +16,10 @@ const DOCUMENT_TYPES = [
   { value: 'soporte_pago', label: 'Soporte de Pago' },
 ];
 
+const MAX_FILES = 20;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
+
 const Upload = () => {
   const { token, API } = useAuth();
   const navigate = useNavigate();
