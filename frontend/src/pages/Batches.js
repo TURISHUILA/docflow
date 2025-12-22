@@ -19,6 +19,7 @@ const statusConfig = {
 
 const Batches = () => {
   const { token, API } = useAuth();
+  const navigate = useNavigate();
   const [batches, setBatches] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [selectedDocs, setSelectedDocs] = useState([]);
