@@ -455,199 +455,51 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
         {"_id": 0}
     ).to_list(1000)
     
-    # Ordenar documentos según tipo
+    # Ordenar documentos según el orden especificado:
+    # 1. Comprobante de Egreso
+    # 2. Cuenta Por Pagar  
+    # 3. Soporte de Pago
+    # 4. Factura (si existe)
     order = [
         DocumentType.COMPROBANTE_EGRESO,
         DocumentType.CUENTA_POR_PAGAR,
-        DocumentType.FACTURA,
-        DocumentType.SOPORTE_PAGO
+        DocumentType.SOPORTE_PAGO,
+        DocumentType.FACTURA
     ]
     
     sorted_docs = sorted(docs, key=lambda d: order.index(d['tipo_documento']) if d['tipo_documento'] in order else 999)
     
-    # Crear PDF consolidado con información analizada
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib.units import inch
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    # Crear PDF consolidado uniendo los documentos originales
+    pdf_writer = PdfWriter()
     
+    for doc in sorted_docs:
+        try:
+            # Leer documento original
+            file_data = doc['file_data']
+            
+            # Si es PDF, agregar todas sus páginas
+            if doc['mime_type'] == 'application/pdf':
+                pdf_reader = PdfReader(io.BytesIO(file_data))
+                for page in pdf_reader.pages:
+                    pdf_writer.add_page(page)
+            # Si es imagen, convertir a PDF
+            elif 'image' in doc['mime_type']:
+                img = Image.open(io.BytesIO(file_data))
+                # Convertir imagen a RGB si es necesario
+                if img.mode in ('RGBA', 'LA', 'P'):
+                    img = img.convert('RGB')
+                img_buffer = io.BytesIO()
+                img.save(img_buffer, format='PDF')
+                img_buffer.seek(0)
+                img_reader = PdfReader(img_buffer)
+                for page in img_reader.pages:
+                    pdf_writer.add_page(page)
+        except Exception as e:
+            logging.error(f"Error adding document {doc['filename']} to PDF: {str(e)}")
+    
+    # Guardar PDF consolidado
     pdf_buffer = io.BytesIO()
-    pdf_doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
-    story = []
-    styles = getSampleStyleSheet()
-    
-    # Estilos personalizados
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=20,
-        textColor=colors.HexColor('#1a202c'),
-        spaceAfter=12,
-        alignment=1  # Center
-    )
-    
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=14,
-        textColor=colors.HexColor('#2d3748'),
-        spaceAfter=10,
-        spaceBefore=10
-    )
-    
-    # Título principal
-    story.append(Paragraph("REPORTE CONSOLIDADO DE PAGO", title_style))
-    story.append(Paragraph(f"Consecutivo: {consecutive_number}", styles['Normal']))
-    story.append(Paragraph(f"Lote: {batch_id[:8]}", styles['Normal']))
-    story.append(Paragraph(f"Fecha de generación: {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
-    story.append(Spacer(1, 0.3*inch))
-    
-    # Resumen ejecutivo
-    story.append(Paragraph("RESUMEN EJECUTIVO", heading_style))
-    
-    # Extraer información común
-    valores = [doc.get('valor') for doc in sorted_docs if doc.get('valor')]
-    terceros = [doc.get('tercero') for doc in sorted_docs if doc.get('tercero')]
-    conceptos = [doc.get('concepto') for doc in sorted_docs if doc.get('concepto')]
-    referencias = [doc.get('referencia_bancaria') for doc in sorted_docs if doc.get('referencia_bancaria')]
-    
-    resumen_data = [
-        ['Campo', 'Información'],
-        ['Tercero/Beneficiario', terceros[0] if terceros else 'No disponible'],
-        ['Valor Total', f"${valores[0]:,.0f}" if valores else 'No disponible'],
-        ['Concepto', conceptos[0][:60] + '...' if conceptos and len(conceptos[0]) > 60 else (conceptos[0] if conceptos else 'No disponible')],
-        ['Referencia Bancaria', referencias[0] if referencias else 'No disponible'],
-        ['Documentos Incluidos', f"{len(sorted_docs)} documentos"]
-    ]
-    
-    resumen_table = Table(resumen_data, colWidths=[2*inch, 4*inch])
-    resumen_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a5568')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('TOPPADDING', (0, 1), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-    ]))
-    
-    story.append(resumen_table)
-    story.append(Spacer(1, 0.3*inch))
-    
-    # Detalle de cada documento
-    story.append(Paragraph("DETALLE DE DOCUMENTOS ANALIZADOS", heading_style))
-    story.append(Spacer(1, 0.1*inch))
-    
-    type_labels = {
-        'comprobante_egreso': 'COMPROBANTE DE EGRESO',
-        'cuenta_por_pagar': 'CUENTA POR PAGAR',
-        'factura': 'FACTURA',
-        'soporte_pago': 'SOPORTE DE PAGO'
-    }
-    
-    for idx, doc in enumerate(sorted_docs, 1):
-        # Título del documento
-        doc_type = type_labels.get(doc['tipo_documento'], doc['tipo_documento'].upper())
-        story.append(Paragraph(f"{idx}. {doc_type}", heading_style))
-        
-        # Información del documento
-        doc_data = [
-            ['Campo', 'Valor Extraído'],
-            ['Nombre Archivo', doc['filename']],
-            ['Tipo', type_labels.get(doc['tipo_documento'], doc['tipo_documento'])],
-            ['Fecha Carga', datetime.fromisoformat(doc['uploaded_at'].replace('Z', '+00:00')).strftime('%d/%m/%Y %H:%M')],
-        ]
-        
-        # Agregar información analizada por IA
-        if doc.get('valor'):
-            doc_data.append(['Valor', f"${doc['valor']:,.0f}"])
-        if doc.get('fecha'):
-            doc_data.append(['Fecha Documento', doc['fecha']])
-        if doc.get('concepto'):
-            doc_data.append(['Concepto', doc['concepto'][:80] + '...' if len(doc['concepto']) > 80 else doc['concepto']])
-        if doc.get('tercero'):
-            doc_data.append(['Tercero', doc['tercero']])
-        if doc.get('referencia_bancaria'):
-            doc_data.append(['Referencia', doc['referencia_bancaria']])
-        
-        doc_table = Table(doc_data, colWidths=[2*inch, 4*inch])
-        doc_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#718096')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f7fafc')),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('TOPPADDING', (0, 1), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-        ]))
-        
-        story.append(doc_table)
-        story.append(Spacer(1, 0.2*inch))
-    
-    # Validaciones y verificaciones
-    story.append(PageBreak())
-    story.append(Paragraph("VALIDACIONES Y VERIFICACIONES", heading_style))
-    story.append(Spacer(1, 0.1*inch))
-    
-    validaciones = []
-    
-    # Validar que todos los valores coincidan
-    if len(set(valores)) == 1 and valores:
-        validaciones.append(['✓', 'Consistencia de Valores', f'Todos los documentos reportan el mismo valor: ${valores[0]:,.0f}'])
-    elif valores:
-        validaciones.append(['⚠', 'Alerta de Valores', f'Se encontraron valores diferentes: {", ".join([f"${v:,.0f}" for v in set(valores)])}'])
-    
-    # Validar que todos los terceros coincidan
-    if len(set(terceros)) == 1 and terceros:
-        validaciones.append(['✓', 'Consistencia de Tercero', f'Todos los documentos corresponden al mismo beneficiario: {terceros[0]}'])
-    elif terceros:
-        validaciones.append(['⚠', 'Alerta de Tercero', 'Se encontraron diferentes terceros en los documentos'])
-    
-    # Validar completitud
-    if len(sorted_docs) == 4:
-        validaciones.append(['✓', 'Completitud', 'El lote incluye los 4 tipos de documentos requeridos'])
-    else:
-        validaciones.append(['⚠', 'Documentos Faltantes', f'Solo se encontraron {len(sorted_docs)} de 4 documentos esperados'])
-    
-    if validaciones:
-        val_data = [['Estado', 'Validación', 'Detalle']] + validaciones
-        val_table = Table(val_data, colWidths=[0.5*inch, 2*inch, 3.5*inch])
-        val_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a5568')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-            ('ALIGN', (1, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f7fafc')),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('TOPPADDING', (0, 1), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-        ]))
-        story.append(val_table)
-    
-    # Pie de página
-    story.append(Spacer(1, 0.4*inch))
-    story.append(Paragraph("_______________________________________________", styles['Normal']))
-    story.append(Paragraph(f"Generado por: {user.nombre} ({user.email})", styles['Normal']))
-    story.append(Paragraph("Sistema DocFlow - Gestión Documental Inteligente", styles['Normal']))
-    story.append(Paragraph("Este documento fue generado automáticamente mediante análisis de IA (GPT-5.2)", styles['Normal']))
-    
-    # Construir PDF
-    pdf_doc.build(story)
+    pdf_writer.write(pdf_buffer)
     pdf_data = pdf_buffer.getvalue()
     
     # Guardar metadata del PDF consolidado
