@@ -240,6 +240,115 @@ const Batches = () => {
         </Dialog>
       </div>
 
+      {/* Sugerencias de IA */}
+      {(suggestions.length > 0 || loadingSuggestions) && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="text-amber-500" size={20} />
+            <h2 className="text-xl font-semibold text-zinc-900">Sugerencias de IA</h2>
+            {loadingSuggestions && <Loader2 className="animate-spin text-zinc-400" size={18} />}
+          </div>
+          
+          {suggestions.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {suggestions.map((suggestion, index) => (
+                <Card key={index} className="border-amber-200 bg-amber-50/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Sparkles className="text-amber-500" size={18} />
+                          Grupo Correlacionado
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          {suggestion.num_documentos} documentos encontrados
+                        </CardDescription>
+                      </div>
+                      <Badge 
+                        className={
+                          suggestion.confianza === 'alta' 
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                            : 'bg-amber-100 text-amber-700 border-amber-200'
+                        }
+                      >
+                        {suggestion.confianza === 'alta' ? 'Alta Confianza' : 'Media Confianza'}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3 p-3 bg-white rounded-lg border border-amber-200">
+                      <div>
+                        <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">Tercero</p>
+                        <p className="text-sm font-medium text-zinc-900 truncate">{suggestion.tercero}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">Valor</p>
+                        <p className="text-sm font-bold text-zinc-900 tabular-nums">
+                          ${suggestion.valor?.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-2">Tipos de Documentos</p>
+                      <div className="flex flex-wrap gap-1">
+                        {suggestion.tipos_documentos?.map((tipo, i) => (
+                          <Badge key={i} variant="outline" className="text-xs border-zinc-300 text-zinc-600">
+                            {tipo === 'comprobante_egreso' ? 'Comprobante Egreso' :
+                             tipo === 'cuenta_por_pagar' ? 'Cuenta Por Pagar' :
+                             tipo === 'factura' ? 'Factura' :
+                             tipo === 'soporte_pago' ? 'Soporte Pago' : tipo}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        onClick={() => createBatchFromSuggestion(suggestion, index)}
+                        disabled={creatingSuggestion[index]}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        {creatingSuggestion[index] ? (
+                          <>
+                            <Loader2 className="animate-spin mr-2" size={16} />
+                            Creando...
+                          </>
+                        ) : (
+                          <>
+                            <Check size={16} className="mr-2" />
+                            Crear Lote y PDF
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => dismissSuggestion(index)}
+                        variant="outline"
+                        className="border-zinc-300"
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+          
+          {suggestions.length === 0 && !loadingSuggestions && (
+            <Card className="border-zinc-200">
+              <CardContent className="py-8 text-center">
+                <Sparkles size={32} className="mx-auto text-zinc-300 mb-2" />
+                <p className="text-zinc-500">No hay sugerencias de correlación disponibles</p>
+                <p className="text-sm text-zinc-400 mt-1">
+                  Sube y procesa más documentos para que la IA encuentre correlaciones
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {batches.length === 0 ? (
         <Card className="border-zinc-200">
           <CardContent className="py-12 text-center">
