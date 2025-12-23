@@ -439,6 +439,77 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
     
     return {"success": True, "analysis": analysis}
 
+@api_router.post("/documents/analyze-all")
+async def analyze_all_documents(authorization: str = Header(None)):
+    """Analiza todos los documentos que no han sido analizados aún (status=cargado)"""
+    user = await get_current_user(authorization)
+    
+    # Obtener documentos sin analizar
+    docs = await db.documents.find(
+        {"status": DocumentStatus.CARGADO},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    if not docs:
+        return {"message": "No hay documentos pendientes de análisis", "analyzed": 0}
+    
+    analyzed_count = 0
+    errors = []
+    
+    for doc in docs:
+        try:
+            # Guardar temporalmente para análisis
+            temp_path = f"/tmp/{doc['id']}_{doc['filename']}"
+            with open(temp_path, "wb") as f:
+                f.write(doc['file_data'])
+            
+            # Analizar con Gemini
+            analysis = await analyze_document_with_gpt(temp_path, doc['mime_type'])
+            
+            # Actualizar documento con análisis
+            update_data = {
+                "status": DocumentStatus.EN_PROCESO,
+                "analisis_completo": analysis
+            }
+            
+            if analysis.get("valor") is not None:
+                update_data["valor"] = analysis["valor"]
+            if analysis.get("fecha"):
+                update_data["fecha"] = analysis["fecha"]
+            if analysis.get("concepto"):
+                update_data["concepto"] = analysis["concepto"]
+            if analysis.get("tercero"):
+                update_data["tercero"] = analysis["tercero"]
+            if analysis.get("nit"):
+                update_data["nit"] = analysis["nit"]
+            if analysis.get("referencia_bancaria"):
+                update_data["referencia_bancaria"] = analysis["referencia_bancaria"]
+            if analysis.get("numero_documento"):
+                update_data["numero_documento"] = analysis["numero_documento"]
+            if analysis.get("banco"):
+                update_data["banco"] = analysis["banco"]
+            
+            await db.documents.update_one({"id": doc['id']}, {"$set": update_data})
+            analyzed_count += 1
+            
+            # Limpiar archivo temporal
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+                
+        except Exception as e:
+            errors.append({"doc_id": doc['id'], "filename": doc['filename'], "error": str(e)})
+    
+    await log_action(user, "ANALYZE_ALL", f"Analizados {analyzed_count} documentos de {len(docs)}")
+    
+    return {
+        "message": f"Análisis completado",
+        "analyzed": analyzed_count,
+        "total": len(docs),
+        "errors": errors if errors else None
+    }
+
 # Batch Processing Endpoints
 @api_router.get("/documents/suggest-batches")
 async def suggest_batches(authorization: str = Header(None)):
