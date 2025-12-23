@@ -340,6 +340,7 @@ def main():
         ("Upload Documents", tester.test_upload_documents),
         ("List Documents", tester.test_list_documents),
         ("Analyze Documents", tester.test_analyze_documents),
+        ("Suggest Batches", tester.test_suggest_batches),
         ("Create Batch", tester.test_create_batch),
         ("List Batches", tester.test_list_batches),
         ("Generate PDF", tester.test_generate_pdf),
