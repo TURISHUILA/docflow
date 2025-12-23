@@ -174,12 +174,14 @@ async def log_action(user: User, action: str, details: str):
     await db.audit_logs.insert_one(doc)
 
 async def analyze_document_with_gpt(file_path: str, mime_type: str) -> Dict[str, Any]:
-    """Analiza un documento usando GPT-5.2 para extraer información"""
+    """Analiza un documento usando GPT-5.2 para extraer información y correlacionar"""
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=str(uuid.uuid4()),
-            system_message="Eres un experto en análisis de documentos contables. Extrae información precisa de documentos financieros."
+            system_message="""Eres un experto en análisis de documentos contables y financieros. 
+Tu tarea es extraer información PRECISA de documentos de pago para poder correlacionarlos.
+Debes ser muy preciso con números, fechas y nombres de terceros."""
         ).with_model("openai", "gpt-5.2")
         
         file_content = FileContentWithMimeType(
@@ -187,17 +189,28 @@ async def analyze_document_with_gpt(file_path: str, mime_type: str) -> Dict[str,
             mime_type=mime_type
         )
         
-        prompt = """Analiza este documento y extrae la siguiente información en formato JSON:
-        {
-            "tipo_documento": "comprobante_egreso" | "cuenta_por_pagar" | "factura" | "soporte_pago",
-            "valor": número decimal,
-            "fecha": "YYYY-MM-DD",
-            "concepto": "texto del concepto",
-            "tercero": "nombre del beneficiario",
-            "referencia_bancaria": "número de referencia si existe"
-        }
-        
-        Si algún campo no está presente, usa null. Responde solo con el JSON, sin texto adicional."""
+        prompt = """Analiza este documento financiero y extrae TODA la información en formato JSON.
+
+IMPORTANTE: Extrae los datos EXACTOS del documento, sin inventar ni asumir nada.
+
+Responde SOLO con este JSON (sin texto adicional):
+{
+    "tipo_documento": "comprobante_egreso" o "cuenta_por_pagar" o "factura" o "soporte_pago",
+    "numero_documento": "número del documento (ej: CE-2025-001, FV-9999)",
+    "valor": número decimal del valor total en COP (solo el número, ej: 5000000),
+    "fecha": "fecha en formato YYYY-MM-DD o DD/MM/YYYY",
+    "tercero": "nombre COMPLETO del beneficiario/proveedor/tercero",
+    "nit": "NIT o identificación del tercero",
+    "concepto": "concepto o descripción del pago",
+    "referencia_bancaria": "número de referencia bancaria si existe",
+    "banco": "nombre del banco si es soporte de pago"
+}
+
+Si un campo no existe, usa null. Se MUY PRECISO con:
+- Valor: debe ser el monto EXACTO en números
+- Tercero: nombre COMPLETO sin errores de tipeo
+- Fecha: formato exacto del documento
+"""
         
         message = UserMessage(
             text=prompt,
@@ -206,17 +219,34 @@ async def analyze_document_with_gpt(file_path: str, mime_type: str) -> Dict[str,
         
         response = await chat.send_message(message)
         
-        # Intentar parsear la respuesta como JSON
-        try:
-            data = json.loads(response)
+        # Limpiar y parsear respuesta
+        response_clean = response.strip()
+        
+        # Intentar extraer JSON de la respuesta
+        import re
+        json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_clean, re.DOTALL)
+        
+        if json_match:
+            data = json.loads(json_match.group())
+            
+            # Validar y limpiar datos
+            if data.get('valor'):
+                # Limpiar valor (remover comas, símbolos)
+                valor_str = str(data['valor']).replace(',', '').replace('$', '').replace('.00', '').strip()
+                try:
+                    data['valor'] = float(valor_str)
+                except:
+                    data['valor'] = None
+            
+            # Normalizar tercero (mayúsculas, sin espacios extras)
+            if data.get('tercero'):
+                data['tercero'] = ' '.join(data['tercero'].upper().split())
+            
             return data
-        except:
-            # Si no es JSON válido, intentar extraer JSON del texto
-            import re
-            json_match = re.search(r'\{[^}]+\}', response, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group())
-            return {"raw_response": response}
+        else:
+            logging.warning(f"No se pudo parsear JSON de GPT-5.2: {response_clean[:200]}")
+            return {"raw_response": response_clean}
+            
     except Exception as e:
         logging.error(f"Error analyzing document: {str(e)}")
         return {"error": str(e)}
