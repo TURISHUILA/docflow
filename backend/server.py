@@ -407,18 +407,25 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
         "analisis_completo": analysis
     }
     
-    if "valor" in analysis:
+    # Extraer y guardar campos específicos
+    if analysis.get("valor") is not None:
         update_data["valor"] = analysis["valor"]
-    if "fecha" in analysis:
+    if analysis.get("fecha"):
         update_data["fecha"] = analysis["fecha"]
-    if "concepto" in analysis:
+    if analysis.get("concepto"):
         update_data["concepto"] = analysis["concepto"]
-    if "tercero" in analysis:
+    if analysis.get("tercero"):
         update_data["tercero"] = analysis["tercero"]
-    if "referencia_bancaria" in analysis:
+    if analysis.get("nit"):
+        update_data["nit"] = analysis["nit"]
+    if analysis.get("referencia_bancaria"):
         update_data["referencia_bancaria"] = analysis["referencia_bancaria"]
+    if analysis.get("numero_documento"):
+        update_data["numero_documento"] = analysis["numero_documento"]
+    if analysis.get("banco"):
+        update_data["banco"] = analysis["banco"]
     
-    await db.documents.update_one({"id": doc_id}, {"$set": update_data})
+    await db.documents.update_one({" id": doc_id}, {"$set": update_data})
     
     # Limpiar archivo temporal
     try:
