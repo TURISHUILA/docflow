@@ -554,7 +554,12 @@ async def suggest_batches(authorization: str = Header(None)):
                 continue
             
             # Verificar coincidencias
-            tercero_match = tercero.upper() == other_tercero.upper()
+            # Tercero: buscar coincidencia parcial (al menos una palabra en común con más de 3 caracteres)
+            tercero_words = set(w for w in tercero.upper().split() if len(w) > 3)
+            other_tercero_words = set(w for w in other_tercero.upper().split() if len(w) > 3)
+            tercero_match = len(tercero_words.intersection(other_tercero_words)) >= 1
+            
+            # Valor: coincidencia dentro del 1%
             valor_match = abs(valor - other_valor) / valor < 0.01 if valor > 0 else False
             
             if tercero_match and valor_match:
