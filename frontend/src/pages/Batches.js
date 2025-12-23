@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { FolderArchive, Download, Plus, FileText } from 'lucide-react';
+import { FolderArchive, Download, Plus, FileText, Sparkles, Check, X, Loader2 } from 'lucide-react';
 
 const statusConfig = {
   cargado: { label: 'Cargado', color: 'text-sky-600 bg-sky-50 border-sky-200' },
@@ -27,11 +27,29 @@ const Batches = () => {
   const [creating, setCreating] = useState(false);
   const [generating, setGenerating] = useState({});
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [creatingSuggestion, setCreatingSuggestion] = useState({});
 
   useEffect(() => {
     fetchBatches();
     fetchDocuments();
+    fetchSuggestions();
   }, []);
+
+  const fetchSuggestions = async () => {
+    setLoadingSuggestions(true);
+    try {
+      const response = await axios.get(`${API}/documents/suggest-batches`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSuggestions(response.data.suggested_batches || []);
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
 
   const fetchBatches = async () => {
     try {
