@@ -171,12 +171,31 @@ class DocFlowAPITester:
 
     def test_create_batch(self):
         """Create batch with processed documents"""
+        # Get some existing processed documents if no uploaded docs
+        if not self.uploaded_docs:
+            # Get first 2 processed documents
+            success, response = self.run_test(
+                "Get Processed Documents for Batch",
+                "GET",
+                "documents/list?status=en_proceso",
+                200
+            )
+            if success and response.get('documents'):
+                docs = response['documents'][:2]  # Take first 2
+                doc_ids = [doc['id'] for doc in docs]
+                self.log(f"   Using existing documents: {len(doc_ids)} docs")
+            else:
+                self.log("   No processed documents available")
+                return False
+        else:
+            doc_ids = self.uploaded_docs
+        
         success, response = self.run_test(
             "Create Batch",
             "POST",
             "batches/create",
             200,
-            data=self.uploaded_docs  # Send as direct list
+            data=doc_ids  # Send as direct list
         )
         
         if success and 'id' in response:
