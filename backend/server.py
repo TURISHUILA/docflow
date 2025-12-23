@@ -503,7 +503,7 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
     pdf_data = pdf_buffer.getvalue()
     
     # Guardar metadata del PDF consolidado
-    pdf_filename = f"Reporte_Consolidado_{consecutive_number}.pdf"
+    pdf_filename = f"Documentos_Consolidados_{consecutive_number}.pdf"
     
     consolidated = ConsolidatedPDF(
         batch_id=batch_id,
