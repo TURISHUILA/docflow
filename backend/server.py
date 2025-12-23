@@ -425,7 +425,7 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
     if analysis.get("banco"):
         update_data["banco"] = analysis["banco"]
     
-    await db.documents.update_one({" id": doc_id}, {"$set": update_data})
+    await db.documents.update_one({"id": doc_id}, {"$set": update_data})
     
     # Limpiar archivo temporal
     try:
