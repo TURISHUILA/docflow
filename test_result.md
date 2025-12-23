@@ -101,3 +101,113 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Aplicación inteligente para gestionar documentos de pago con:
+  - Carga de documentos (PDF, JPG, PNG)
+  - Clasificación automática por tipo
+  - Extracción de datos con IA (valores, fechas, terceros, conceptos)
+  - Correlación inteligente para agrupar documentos relacionados
+  - Generación de PDF consolidado (uniendo documentos originales)
+
+backend:
+  - task: "Login/Autenticación JWT"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Probado con curl - login funciona correctamente"
+
+  - task: "Extracción de datos con IA (Gemini)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "GPT-5.2 no soporta archivos adjuntos"
+      - working: true
+        agent: "main"
+        comment: "Cambiado a Gemini 2.5 Flash - extracción funcionando correctamente"
+
+  - task: "Correlación de documentos"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoint /api/documents/suggest-batches implementado, necesita test con datos correlacionados"
+
+  - task: "Generación de PDF consolidado"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Une documentos originales en orden especificado"
+
+frontend:
+  - task: "Lista de documentos con datos extraídos"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Documents.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Muestra valor y tercero extraídos correctamente"
+
+  - task: "Dashboard con estadísticas"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Dashboard.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Muestra totales y progreso de procesamiento"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Extracción de datos con IA (Gemini)"
+    - "Correlación de documentos"
+    - "Generación de PDF consolidado"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      CAMBIO CRÍTICO: Se cambió el modelo de IA de GPT-5.2 a Gemini 2.5 Flash porque FileContentWithMimeType solo funciona con Gemini.
+      La extracción de datos ahora funciona correctamente (probado con 11 documentos).
+      Necesito que pruebes:
+      1. Endpoint /api/documents/{id}/analyze - debe extraer valor, tercero, concepto
+      2. Endpoint /api/documents/suggest-batches - debe encontrar correlaciones
+      3. Endpoint /api/batches/{id}/generate-pdf - debe unir documentos originales
