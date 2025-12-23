@@ -174,15 +174,17 @@ async def log_action(user: User, action: str, details: str):
     await db.audit_logs.insert_one(doc)
 
 async def analyze_document_with_gpt(file_path: str, mime_type: str) -> Dict[str, Any]:
-    """Analiza un documento usando GPT-5.2 para extraer información y correlacionar"""
+    """Analiza un documento usando Gemini para extraer información y correlacionar.
+    IMPORTANTE: FileContentWithMimeType solo funciona con Gemini provider."""
     try:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=str(uuid.uuid4()),
-            system_message="""Eres un experto en análisis de documentos contables y financieros. 
+            system_message="""Eres un experto en análisis de documentos contables y financieros colombianos.
 Tu tarea es extraer información PRECISA de documentos de pago para poder correlacionarlos.
-Debes ser muy preciso con números, fechas y nombres de terceros."""
-        ).with_model("openai", "gpt-5.2")
+Debes ser muy preciso con números, fechas y nombres de terceros.
+Los documentos típicos incluyen: comprobantes de egreso, cuentas por pagar, facturas y soportes de pago."""
+        ).with_model("gemini", "gemini-2.5-flash")
         
         file_content = FileContentWithMimeType(
             file_path=file_path,
