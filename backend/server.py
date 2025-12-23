@@ -431,6 +431,80 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
     return {"success": True, "analysis": analysis}
 
 # Batch Processing Endpoints
+@api_router.get("/documents/suggest-batches")
+async def suggest_batches(authorization: str = Header(None)):
+    """Sugiere lotes automáticamente basándose en correlaciones de documentos analizados"""
+    user = await get_current_user(authorization)
+    
+    # Obtener documentos en proceso (ya analizados)
+    docs = await db.documents.find(
+        {"status": DocumentStatus.EN_PROCESO},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    if not docs:
+        return {"suggested_batches": [], "message": "No hay documentos analizados disponibles"}
+    
+    # Agrupar por coincidencias
+    correlations = []
+    processed_docs = set()
+    
+    for doc in docs:
+        if doc['id'] in processed_docs:
+            continue
+            
+        # Buscar documentos que coincidan
+        valor = doc.get('valor')
+        tercero = doc.get('tercero')
+        
+        if not valor or not tercero:
+            continue
+        
+        # Buscar coincidencias (mismo tercero y valor similar ±1%)
+        matching_docs = [doc]
+        
+        for other_doc in docs:
+            if other_doc['id'] == doc['id'] or other_doc['id'] in processed_docs:
+                continue
+            
+            other_valor = other_doc.get('valor')
+            other_tercero = other_doc.get('tercero')
+            
+            if not other_valor or not other_tercero:
+                continue
+            
+            # Verificar coincidencias
+            tercero_match = tercero.upper() == other_tercero.upper()
+            valor_match = abs(valor - other_valor) / valor < 0.01 if valor > 0 else False
+            
+            if tercero_match and valor_match:
+                matching_docs.append(other_doc)
+                processed_docs.add(other_doc['id'])
+        
+        if len(matching_docs) >= 2:  # Al menos 2 documentos relacionados
+            processed_docs.add(doc['id'])
+            
+            # Verificar tipos de documentos
+            tipos = {d['tipo_documento'] for d in matching_docs}
+            doc_ids = [d['id'] for d in matching_docs]
+            
+            correlations.append({
+                "tercero": tercero,
+                "valor": valor,
+                "num_documentos": len(matching_docs),
+                "tipos_documentos": list(tipos),
+                "document_ids": doc_ids,
+                "confianza": "alta" if len(matching_docs) >= 3 else "media"
+            })
+    
+    await log_action(user, "SUGGEST_BATCHES", f"Se sugirieron {len(correlations)} lotes por correlación")
+    
+    return {
+        "suggested_batches": correlations,
+        "total_suggestions": len(correlations),
+        "message": f"Se encontraron {len(correlations)} grupos de documentos correlacionados"
+    }
+
 @api_router.post("/batches/create")
 async def create_batch(
     document_ids: List[str],
