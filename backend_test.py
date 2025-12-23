@@ -169,6 +169,24 @@ class DocFlowAPITester:
         self.log(f"   Analyzed {success_count}/{len(self.uploaded_docs)} documents")
         return success_count == len(self.uploaded_docs)
 
+    def test_suggest_batches(self):
+        """Test batch suggestions based on correlations"""
+        success, response = self.run_test(
+            "Suggest Batches",
+            "GET",
+            "documents/suggest-batches",
+            200
+        )
+        
+        if success:
+            suggestions = response.get('suggested_batches', [])
+            total = response.get('total_suggestions', 0)
+            self.log(f"   Found {total} batch suggestions")
+            for i, suggestion in enumerate(suggestions[:2]):  # Show first 2
+                self.log(f"   - Suggestion {i+1}: {suggestion['num_documentos']} docs, tercero: {suggestion['tercero'][:30]}...")
+            return True
+        return False
+
     def test_create_batch(self):
         """Create batch with processed documents"""
         # Get some existing processed documents if no uploaded docs
