@@ -129,7 +129,7 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
@@ -137,18 +137,36 @@ backend:
       - working: true
         agent: "main"
         comment: "Cambiado a Gemini 2.5 Flash - extracción funcionando correctamente"
+      - working: true
+        agent: "testing"
+        comment: "Verificado - extrae valor, tercero, concepto correctamente"
 
   - task: "Correlación de documentos"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Endpoint /api/documents/suggest-batches implementado, necesita test con datos correlacionados"
+      - working: true
+        agent: "main"
+        comment: "Algoritmo mejorado con matching parcial de terceros - encuentra 2 grupos correlacionados"
+
+  - task: "UI Sugerencias de IA"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Batches.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implementada interfaz con sugerencias de IA, botones crear lote y descartar"
 
   - task: "Generación de PDF consolidado"
     implemented: true
