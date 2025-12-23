@@ -85,7 +85,7 @@ const Batches = () => {
     try {
       await axios.post(
         `${API}/batches/create`,
-        { document_ids: selectedDocs },
+        selectedDocs,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success('Lote creado exitosamente');
@@ -93,11 +93,46 @@ const Batches = () => {
       setDialogOpen(false);
       fetchBatches();
       fetchDocuments();
+      fetchSuggestions();
     } catch (error) {
       toast.error('Error al crear lote');
     } finally {
       setCreating(false);
     }
+  };
+
+  const createBatchFromSuggestion = async (suggestion, index) => {
+    setCreatingSuggestion(prev => ({ ...prev, [index]: true }));
+    try {
+      // Crear el lote
+      const batchResponse = await axios.post(
+        `${API}/batches/create`,
+        suggestion.document_ids,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Generar el PDF automáticamente
+      const batchId = batchResponse.data.id;
+      await axios.post(
+        `${API}/batches/${batchId}/generate-pdf`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      toast.success('Lote creado y PDF generado exitosamente');
+      fetchBatches();
+      fetchDocuments();
+      fetchSuggestions();
+    } catch (error) {
+      toast.error('Error al crear lote desde sugerencia');
+    } finally {
+      setCreatingSuggestion(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const dismissSuggestion = (index) => {
+    setSuggestions(suggestions.filter((_, i) => i !== index));
+    toast.info('Sugerencia descartada');
   };
 
   const generatePDF = async (batchId) => {
