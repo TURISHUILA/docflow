@@ -26,7 +26,7 @@ def sanitize_filename(name: str) -> str:
     """Sanitiza un nombre para usarlo como nombre de archivo válido."""
     if not name:
         return "SIN_NOMBRE"
-    # Reemplazar caracteres no válidos por guión bajo
+    # Reemplazar caracteres no válidos para nombres de archivo (pero permitir guiones)
     sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
     # Reemplazar múltiples espacios o guiones bajos por uno solo
     sanitized = re.sub(r'[\s_]+', '_', sanitized)
