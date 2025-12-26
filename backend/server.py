@@ -18,8 +18,46 @@ from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 from PIL import Image
 import json
 import tempfile
+import re
 
 ROOT_DIR = Path(__file__).parent
+
+def sanitize_filename(name: str) -> str:
+    """Sanitiza un nombre para usarlo como nombre de archivo válido."""
+    if not name:
+        return "SIN_NOMBRE"
+    # Reemplazar caracteres no válidos por guión bajo
+    sanitized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+    # Reemplazar múltiples espacios o guiones bajos por uno solo
+    sanitized = re.sub(r'[\s_]+', '_', sanitized)
+    # Quitar guiones bajos al inicio y final
+    sanitized = sanitized.strip('_')
+    return sanitized or "SIN_NOMBRE"
+
+def generate_pdf_filename_from_batch(docs: list) -> str:
+    """
+    Genera el nombre del PDF basado en el comprobante de egreso.
+    Formato: {NumeroComprobanteEgreso}_{NombreTercero}.pdf
+    Ejemplo: CE-19521_AVIANCA.pdf
+    """
+    # Buscar el comprobante de egreso en los documentos del lote
+    comprobante = None
+    for doc in docs:
+        if doc.get('tipo_documento') == DocumentType.COMPROBANTE_EGRESO:
+            comprobante = doc
+            break
+    
+    if comprobante:
+        numero = comprobante.get('numero_documento') or comprobante.get('analisis_completo', {}).get('numero_documento')
+        tercero = comprobante.get('tercero') or comprobante.get('analisis_completo', {}).get('tercero')
+        
+        if numero:
+            numero_sanitizado = sanitize_filename(numero)
+            tercero_sanitizado = sanitize_filename(tercero) if tercero else "SIN_TERCERO"
+            return f"{numero_sanitizado}_{tercero_sanitizado}.pdf"
+    
+    # Fallback: usar consecutivo si no hay comprobante de egreso válido
+    return None
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
