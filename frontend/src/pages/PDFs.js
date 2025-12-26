@@ -179,6 +179,29 @@ const PDFs = () => {
     }
   };
 
+  const removeDocumentFromBatch = async (doc) => {
+    if (!pdfDetails?.batch?.id) return;
+    
+    const confirmMsg = `¿Estás seguro de quitar "${doc.filename}" del PDF?\n\nEl documento NO se eliminará, solo se quitará del lote.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setRemovingDoc(prev => ({ ...prev, [doc.id]: true }));
+    try {
+      await axios.delete(`${API}/batches/${pdfDetails.batch.id}/documents/${doc.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success(`Documento "${doc.filename}" removido del PDF`);
+      
+      // Recargar detalles
+      fetchPdfDetails(previewPdf.id);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al quitar documento');
+    } finally {
+      setRemovingDoc(prev => ({ ...prev, [doc.id]: false }));
+    }
+  };
+
   const regeneratePDF = async () => {
     if (!pdfDetails?.batch?.id) return;
 
