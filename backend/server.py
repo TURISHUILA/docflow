@@ -27,7 +27,7 @@ def sanitize_filename(name: str) -> str:
     if not name:
         return "SIN_NOMBRE"
     # Reemplazar caracteres no válidos por guión bajo
-    sanitized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+    sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
     # Reemplazar múltiples espacios o guiones bajos por uno solo
     sanitized = re.sub(r'[\s_]+', '_', sanitized)
     # Quitar guiones bajos al inicio y final
