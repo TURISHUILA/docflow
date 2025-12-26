@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Download, Calendar, FolderArchive, Eye, Maximize2, Users, DollarSign, Loader2 } from 'lucide-react';
+import { FileText, Download, Calendar, FolderArchive, Eye, Maximize2, Users, DollarSign, Loader2, Upload, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const typeLabels = {
   comprobante_egreso: 'Comprobante Egreso',
@@ -25,6 +25,10 @@ const PDFs = () => {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [pdfDetails, setPdfDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [replacingDoc, setReplacingDoc] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchPDFs();
@@ -49,7 +53,6 @@ const PDFs = () => {
         })
       ]);
 
-      // Filtrar PDFs vacíos (menos de 1KB probablemente están vacíos)
       const validPdfs = pdfsResponse.data.pdfs.filter(pdf => pdf.file_size > 1000);
       setPdfs(validPdfs);
       
@@ -83,7 +86,6 @@ const PDFs = () => {
     setLoadingPreview(true);
     setPreviewPdf(pdf);
     
-    // Cargar detalles del PDF
     fetchPdfDetails(pdf.id);
     
     try {
@@ -109,6 +111,7 @@ const PDFs = () => {
     setPreviewPdf(null);
     setPreviewUrl(null);
     setPdfDetails(null);
+    setReplacingDoc(null);
   };
 
   const downloadPDF = async (pdf) => {
@@ -139,6 +142,63 @@ const PDFs = () => {
     }
   };
 
+  const handleReplaceClick = (doc) => {
+    setReplacingDoc(doc);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !replacingDoc) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      await axios.post(`${API}/documents/${replacingDoc.id}/replace`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      toast.success(`Documento "${replacingDoc.filename}" reemplazado por "${file.name}"`);
+      
+      // Recargar detalles del PDF
+      if (previewPdf) {
+        fetchPdfDetails(previewPdf.id);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al reemplazar documento');
+    } finally {
+      setUploading(false);
+      setReplacingDoc(null);
+      event.target.value = '';
+    }
+  };
+
+  const regeneratePDF = async () => {
+    if (!pdfDetails?.batch?.id) return;
+
+    setRegenerating(true);
+    try {
+      const response = await axios.post(`${API}/batches/${pdfDetails.batch.id}/regenerate-pdf`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('PDF regenerado exitosamente');
+      
+      // Cerrar modal y recargar
+      closePreview();
+      fetchPDFs();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al regenerar PDF');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
@@ -153,8 +213,19 @@ const PDFs = () => {
     );
   }
 
+  const needsRegeneration = pdfDetails?.documents?.some(doc => doc.status === 'cargado' || doc.replaced_at);
+
   return (
     <div className="space-y-6" data-testid="pdfs-page">
+      {/* Input oculto para seleccionar archivo */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept=".pdf,.jpg,.jpeg,.png"
+        className="hidden"
+      />
+
       <div>
         <h1 className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">PDFs Consolidados</h1>
         <p className="text-zinc-500 mt-2">Documentos de pago unidos por tercero y valor</p>
@@ -217,7 +288,7 @@ const PDFs = () => {
                       className="flex-1 border-zinc-300 hover:bg-zinc-100"
                     >
                       <Eye size={18} className="mr-2" />
-                      Ver Documentos Unidos
+                      Ver / Editar
                     </Button>
                     <Button
                       onClick={() => downloadPDF(pdf)}
@@ -234,7 +305,7 @@ const PDFs = () => {
         </div>
       )}
 
-      {/* Modal de Vista Previa del PDF con documentos unidos */}
+      {/* Modal de Vista Previa y Edición del PDF */}
       <Dialog open={!!previewPdf} onOpenChange={(open) => !open && closePreview()}>
         <DialogContent className="max-w-7xl w-[95vw] h-[90vh] p-0 overflow-hidden">
           <DialogHeader className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
@@ -266,11 +337,11 @@ const PDFs = () => {
           </DialogHeader>
           
           <div className="flex h-[calc(90vh-80px)]">
-            {/* Panel izquierdo: Detalles de documentos unidos */}
-            <div className="w-80 border-r border-zinc-200 bg-zinc-50 overflow-y-auto p-4">
+            {/* Panel izquierdo: Documentos del lote con opción de reemplazar */}
+            <div className="w-96 border-r border-zinc-200 bg-zinc-50 overflow-y-auto p-4">
               <h3 className="font-semibold text-zinc-900 mb-4 flex items-center gap-2">
                 <Users size={18} className="text-emerald-600" />
-                Documentos Unidos
+                Documentos del PDF
               </h3>
               
               {loadingDetails ? (
@@ -295,20 +366,53 @@ const PDFs = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Alerta si hay documentos modificados */}
+                  {needsRegeneration && (
+                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={18} className="text-amber-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">PDF desactualizado</p>
+                          <p className="text-xs text-amber-700 mt-1">
+                            Hay documentos modificados. Regenera el PDF para incluir los cambios.
+                          </p>
+                          <Button
+                            onClick={regeneratePDF}
+                            disabled={regenerating}
+                            size="sm"
+                            className="mt-2 bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            {regenerating ? (
+                              <span className="flex items-center gap-2">
+                                <Loader2 size={14} className="animate-spin" />
+                                Regenerando...
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2">
+                                <RefreshCw size={14} />
+                                Regenerar PDF
+                              </span>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
-                  {/* Lista de documentos */}
+                  {/* Lista de documentos con opción de reemplazar */}
                   <div className="space-y-2">
                     <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">
-                      Orden en el PDF:
+                      Documentos en el PDF:
                     </p>
                     {pdfDetails.documents?.map((doc, index) => (
-                      <div key={doc.id} className="p-3 bg-white rounded-lg border border-zinc-200">
+                      <div key={doc.id} className="p-3 bg-white rounded-lg border border-zinc-200 hover:border-zinc-300 transition-colors">
                         <div className="flex items-start gap-2">
                           <span className="w-6 h-6 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center flex-shrink-0">
                             {index + 1}
                           </span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-zinc-900 truncate" title={doc.filename}>
+                            <p className="text-sm font-medium text-zinc-900 truncate" title={doc.filename}>
                               {doc.filename}
                             </p>
                             <p className="text-xs text-zinc-500">
@@ -320,15 +424,82 @@ const PDFs = () => {
                               </p>
                             )}
                             {doc.tercero && (
-                              <p className="text-xs text-zinc-600 mt-1 truncate" title={doc.tercero}>
+                              <p className="text-xs text-zinc-600 truncate" title={doc.tercero}>
                                 {doc.tercero}
                               </p>
                             )}
+                            
+                            {/* Indicadores de estado */}
+                            <div className="flex items-center gap-2 mt-2">
+                              {doc.status === 'cargado' && (
+                                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">
+                                  Pendiente validar
+                                </Badge>
+                              )}
+                              {doc.replaced_at && (
+                                <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 bg-blue-50">
+                                  Modificado
+                                </Badge>
+                              )}
+                              {doc.status === 'en_proceso' && !doc.replaced_at && (
+                                <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50">
+                                  <CheckCircle size={10} className="mr-1" />
+                                  OK
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Botón reemplazar */}
+                            <Button
+                              onClick={() => handleReplaceClick(doc)}
+                              disabled={uploading && replacingDoc?.id === doc.id}
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 w-full border-zinc-300 text-zinc-700 hover:bg-zinc-100"
+                            >
+                              {uploading && replacingDoc?.id === doc.id ? (
+                                <span className="flex items-center gap-2">
+                                  <Loader2 size={14} className="animate-spin" />
+                                  Subiendo...
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-2">
+                                  <Upload size={14} />
+                                  Reemplazar Documento
+                                </span>
+                              )}
+                            </Button>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Botón regenerar al final */}
+                  {pdfDetails.documents?.length > 0 && (
+                    <div className="pt-4 border-t border-zinc-200">
+                      <Button
+                        onClick={regeneratePDF}
+                        disabled={regenerating}
+                        className="w-full bg-zinc-900 hover:bg-zinc-800 text-white"
+                      >
+                        {regenerating ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 size={16} className="animate-spin" />
+                            Regenerando PDF...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <RefreshCw size={16} />
+                            Regenerar PDF Final
+                          </span>
+                        )}
+                      </Button>
+                      <p className="text-xs text-zinc-500 text-center mt-2">
+                        Genera un nuevo PDF con todos los documentos actuales
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-zinc-500 text-sm">No hay detalles disponibles</p>
@@ -379,11 +550,10 @@ const PDFs = () => {
                 <FileText size={20} className="text-white" />
               </div>
               <div>
-                <h3 className="font-semibold text-zinc-900 mb-1">Sobre los PDFs Consolidados</h3>
+                <h3 className="font-semibold text-zinc-900 mb-1">Edición de Documentos</h3>
                 <p className="text-sm text-zinc-600 leading-relaxed">
-                  Cada PDF contiene los documentos originales unidos en este orden: 
-                  <strong> Comprobante de Egreso → Cuenta Por Pagar → Soporte de Pago → Factura</strong>. 
-                  Los documentos se agrupan automáticamente por tercero y valor coincidente.
+                  Haz clic en <strong>"Ver / Editar"</strong> para ver los documentos del PDF. 
+                  Puedes <strong>reemplazar</strong> cualquier documento y luego <strong>regenerar el PDF</strong> con los cambios.
                 </p>
               </div>
             </div>
