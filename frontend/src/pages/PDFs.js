@@ -276,15 +276,24 @@ const PDFs = () => {
     );
   }
 
-  const needsRegeneration = pdfDetails?.documents?.some(doc => doc.status === 'cargado' || doc.replaced_at);
+  const needsRegeneration = pdfDetails?.documents?.some(doc => doc.status === 'cargado' || doc.replaced_at) || pdfDetails?.batch?.needs_regeneration;
 
   return (
     <div className="space-y-6" data-testid="pdfs-page">
-      {/* Input oculto para seleccionar archivo */}
+      {/* Input oculto para reemplazar archivo */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileSelect}
+        accept=".pdf,.jpg,.jpeg,.png"
+        className="hidden"
+      />
+      
+      {/* Input oculto para agregar archivo */}
+      <input
+        type="file"
+        ref={addFileInputRef}
+        onChange={handleAddFileSelect}
         accept=".pdf,.jpg,.jpeg,.png"
         className="hidden"
       />
