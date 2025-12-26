@@ -508,27 +508,118 @@ async def list_documents(authorization: str = Header(None), status: Optional[str
 
 @api_router.post("/documents/{doc_id}/analyze")
 async def analyze_document(doc_id: str, authorization: str = Header(None)):
+    """
+    Analiza un documento con IA. Si es un PDF multipágina, lo divide automáticamente
+    y analiza cada página por separado.
+    """
     user = await get_current_user(authorization)
     
     doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
-    # Guardar temporalmente para análisis
+    # Verificar si es PDF y tiene múltiples páginas
+    is_pdf = doc.get('filename', '').lower().endswith('.pdf') or doc.get('mime_type', '').lower().endswith('pdf')
+    
+    if is_pdf and not doc.get('parent_document_id') and not doc.get('split_into'):
+        # Verificar número de páginas
+        try:
+            reader = PdfReader(io.BytesIO(doc['file_data']))
+            num_pages = len(reader.pages)
+            
+            if num_pages > 1:
+                # Dividir automáticamente el PDF multipágina
+                pages_data = split_pdf_to_pages(doc['file_data'])
+                created_docs = []
+                skipped_pages = []
+                
+                for page_num, page_data in enumerate(pages_data, 1):
+                    temp_path = f"/tmp/page_{doc_id}_{page_num}.pdf"
+                    with open(temp_path, "wb") as f:
+                        f.write(page_data)
+                    
+                    # Analizar página con IA
+                    analysis = await analyze_pdf_page(temp_path, page_num)
+                    
+                    try:
+                        os.remove(temp_path)
+                    except:
+                        pass
+                    
+                    # Si la página contiene un documento válido
+                    if analysis.get('es_documento_valido', False) and (analysis.get('tercero') or analysis.get('valor')):
+                        new_doc_id = str(uuid.uuid4())
+                        original_name = doc['filename'].replace('.pdf', '').replace('.PDF', '')
+                        
+                        new_doc = {
+                            "id": new_doc_id,
+                            "filename": f"{original_name}_pag{page_num}.pdf",
+                            "tipo_documento": analysis.get('tipo_documento') or doc.get('tipo_documento'),
+                            "uploaded_by": user.id,
+                            "file_size": len(page_data),
+                            "mime_type": "application/pdf",
+                            "status": DocumentStatus.EN_PROCESO,
+                            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                            "file_data": page_data,
+                            "parent_document_id": doc_id,
+                            "page_number": page_num,
+                            "valor": analysis.get('valor'),
+                            "tercero": analysis.get('tercero'),
+                            "nit": analysis.get('nit'),
+                            "fecha": analysis.get('fecha'),
+                            "concepto": analysis.get('concepto'),
+                            "numero_documento": analysis.get('numero_documento'),
+                            "referencia_bancaria": analysis.get('referencia_bancaria'),
+                            "banco": analysis.get('banco'),
+                            "analisis_completo": analysis
+                        }
+                        
+                        await db.documents.insert_one(new_doc)
+                        created_docs.append({
+                            "id": new_doc_id,
+                            "filename": new_doc['filename'],
+                            "page_number": page_num,
+                            "tercero": analysis.get('tercero'),
+                            "valor": analysis.get('valor')
+                        })
+                    else:
+                        skipped_pages.append(page_num)
+                
+                # Marcar documento original como dividido
+                await db.documents.update_one(
+                    {"id": doc_id},
+                    {"$set": {
+                        "status": "dividido",
+                        "split_into": [d['id'] for d in created_docs],
+                        "total_pages": num_pages
+                    }}
+                )
+                
+                await log_action(user, "AUTO_SPLIT_ANALYZE", f"PDF {doc['filename']} dividido en {len(created_docs)} documentos")
+                
+                return {
+                    "success": True,
+                    "was_split": True,
+                    "message": f"PDF multipágina dividido y analizado",
+                    "total_pages": num_pages,
+                    "documents_created": len(created_docs),
+                    "created_documents": created_docs
+                }
+        except Exception as e:
+            logging.warning(f"Error checking PDF pages: {e}")
+    
+    # Análisis normal para documentos de una página
     temp_path = f"/tmp/{doc_id}_{doc['filename']}"
     with open(temp_path, "wb") as f:
         f.write(doc['file_data'])
     
-    # Analizar con GPT-5.2
     analysis = await analyze_document_with_gpt(temp_path, doc['mime_type'])
     
-    # Actualizar documento con análisis
     update_data = {
         "status": DocumentStatus.EN_PROCESO,
         "analisis_completo": analysis
     }
     
-    # Extraer y guardar campos específicos
     if analysis.get("valor") is not None:
         update_data["valor"] = analysis["valor"]
     if analysis.get("fecha"):
@@ -548,7 +639,6 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
     
     await db.documents.update_one({"id": doc_id}, {"$set": update_data})
     
-    # Limpiar archivo temporal
     try:
         os.remove(temp_path)
     except:
@@ -556,7 +646,7 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
     
     await log_action(user, "ANALYZE_DOCUMENT", f"Analizado documento {doc['filename']}")
     
-    return {"success": True, "analysis": analysis}
+    return {"success": True, "analysis": analysis, "was_split": False}
 
 @api_router.post("/documents/analyze-all")
 async def analyze_all_documents(authorization: str = Header(None)):
