@@ -58,6 +58,7 @@ def generate_pdf_filename_from_batch(docs: list) -> str:
     
     # Fallback: usar consecutivo si no hay comprobante de egreso válido
     return None
+
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
