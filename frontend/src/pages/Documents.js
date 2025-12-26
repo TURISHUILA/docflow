@@ -530,6 +530,87 @@ const Documents = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de resultado de división de PDF */}
+      <Dialog open={!!splitResult} onOpenChange={(open) => !open && setSplitResult(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scissors size={20} className="text-purple-600" />
+              PDF Dividido Exitosamente
+            </DialogTitle>
+          </DialogHeader>
+          
+          {splitResult && (
+            <div className="space-y-4">
+              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <p className="text-sm text-purple-800">
+                  <strong>{splitResult.original_document}</strong> ha sido dividido en páginas individuales.
+                </p>
+                <div className="mt-2 grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-purple-700">{splitResult.total_pages}</p>
+                    <p className="text-xs text-purple-600">Páginas totales</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-emerald-600">{splitResult.valid_documents_created}</p>
+                    <p className="text-xs text-emerald-700">Documentos extraídos</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-zinc-500">{splitResult.skipped_pages}</p>
+                    <p className="text-xs text-zinc-600">Páginas omitidas</p>
+                  </div>
+                </div>
+              </div>
+
+              {splitResult.created_documents?.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-zinc-700 mb-2">Documentos extraídos:</p>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {splitResult.created_documents.map((doc, idx) => (
+                      <div key={idx} className="p-3 bg-white rounded-lg border border-zinc-200 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs flex items-center justify-center font-bold">
+                            {doc.page_number}
+                          </span>
+                          <div>
+                            <p className="text-sm font-medium text-zinc-900">{doc.filename}</p>
+                            <p className="text-xs text-zinc-500">
+                              {typeLabels[doc.tipo_documento] || doc.tipo_documento} • {doc.tercero || 'Sin tercero'}
+                            </p>
+                          </div>
+                        </div>
+                        {doc.valor && (
+                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                            ${doc.valor.toLocaleString('es-CO')}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {splitResult.skipped_details?.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-zinc-500 mb-2">Páginas omitidas:</p>
+                  <div className="text-xs text-zinc-500 space-y-1">
+                    {splitResult.skipped_details.map((skip, idx) => (
+                      <p key={idx}>• Página {skip.page_number}: {skip.reason}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button onClick={() => setSplitResult(null)}>
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
