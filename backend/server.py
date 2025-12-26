@@ -1361,8 +1361,11 @@ async def regenerate_pdf(batch_id: str, authorization: str = Header(None)):
     except:
         pass
     
-    # Guardar nuevo PDF
-    pdf_filename = f"Documentos_Consolidados_{consecutive_number}.pdf"
+    # Generar nombre del PDF basado en el comprobante de egreso
+    pdf_filename = generate_pdf_filename_from_batch(sorted_docs)
+    if not pdf_filename:
+        # Fallback a consecutivo si no hay comprobante de egreso válido
+        pdf_filename = f"Documentos_Consolidados_{consecutive_number}.pdf"
     
     consolidated = ConsolidatedPDF(
         batch_id=batch_id,
