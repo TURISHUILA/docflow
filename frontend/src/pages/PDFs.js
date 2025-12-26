@@ -4,18 +4,31 @@ import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Download, Calendar, User, FolderArchive, Eye } from 'lucide-react';
+import { FileText, Download, Calendar, User, FolderArchive, Eye, X, Maximize2 } from 'lucide-react';
 
 const PDFs = () => {
   const { token, API } = useAuth();
   const [pdfs, setPdfs] = useState([]);
   const [batches, setBatches] = useState({});
   const [loading, setLoading] = useState(true);
+  const [previewPdf, setPreviewPdf] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
     fetchPDFs();
   }, []);
+
+  // Limpiar URL cuando se cierra el preview
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const fetchPDFs = async () => {
     try {
@@ -30,7 +43,6 @@ const PDFs = () => {
 
       setPdfs(pdfsResponse.data.pdfs);
       
-      // Crear un mapa de batches por ID
       const batchMap = {};
       batchesResponse.data.batches.forEach(batch => {
         batchMap[batch.id] = batch;
@@ -41,6 +53,34 @@ const PDFs = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openPreview = async (pdf) => {
+    setLoadingPreview(true);
+    setPreviewPdf(pdf);
+    
+    try {
+      const response = await axios.get(`${API}/pdfs/${pdf.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      setPreviewUrl(url);
+    } catch (error) {
+      toast.error('Error al cargar vista previa');
+      setPreviewPdf(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewPdf(null);
+    setPreviewUrl(null);
   };
 
   const downloadPDF = async (pdf) => {
@@ -65,6 +105,12 @@ const PDFs = () => {
     }
   };
 
+  const openInNewTab = () => {
+    if (previewUrl) {
+      window.open(previewUrl, '_blank');
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
@@ -83,7 +129,7 @@ const PDFs = () => {
     <div className="space-y-6" data-testid="pdfs-page">
       <div>
         <h1 className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">PDFs Consolidados</h1>
-        <p className="text-zinc-500 mt-2">Documentos de pago consolidados listos para descargar</p>
+        <p className="text-zinc-500 mt-2">Documentos de pago consolidados listos para ver y descargar</p>
       </div>
 
       {pdfs.length === 0 ? (
@@ -124,7 +170,6 @@ const PDFs = () => {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {/* Información del PDF */}
                   <div className="grid grid-cols-2 gap-3 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
                     <div>
                       <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">
@@ -142,7 +187,6 @@ const PDFs = () => {
                     </div>
                   </div>
 
-                  {/* Metadata */}
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2 text-zinc-600">
                       <Calendar size={14} className="text-zinc-400" />
@@ -154,13 +198,8 @@ const PDFs = () => {
                         minute: '2-digit'
                       })}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-zinc-600">
-                      <User size={14} className="text-zinc-400" />
-                      <span>Creado por usuario</span>
-                    </div>
                   </div>
 
-                  {/* Contenido del lote */}
                   {batch && (
                     <div className="pt-3 border-t border-zinc-200">
                       <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-2">
@@ -178,21 +217,84 @@ const PDFs = () => {
                     </div>
                   )}
 
-                  {/* Botón de descarga */}
-                  <Button
-                    onClick={() => downloadPDF(pdf)}
-                    className="w-full bg-zinc-900 hover:bg-zinc-800 text-white shadow-sm"
-                    data-testid={`download-pdf-${pdf.id}`}
-                  >
-                    <Download size={18} className="mr-2" />
-                    Descargar PDF
-                  </Button>
+                  {/* Botones de acción */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={() => openPreview(pdf)}
+                      variant="outline"
+                      className="flex-1 border-zinc-300 hover:bg-zinc-100"
+                    >
+                      <Eye size={18} className="mr-2" />
+                      Ver PDF
+                    </Button>
+                    <Button
+                      onClick={() => downloadPDF(pdf)}
+                      className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white"
+                    >
+                      <Download size={18} className="mr-2" />
+                      Descargar
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
           })}
         </div>
       )}
+
+      {/* Modal de Vista Previa del PDF */}
+      <Dialog open={!!previewPdf} onOpenChange={(open) => !open && closePreview()}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <FileText size={20} className="text-emerald-600" />
+                {previewPdf?.filename}
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={openInNewTab}
+                  variant="outline"
+                  size="sm"
+                  className="border-zinc-300"
+                >
+                  <Maximize2 size={16} className="mr-2" />
+                  Abrir en nueva pestaña
+                </Button>
+                <Button
+                  onClick={() => previewPdf && downloadPDF(previewPdf)}
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Download size={16} className="mr-2" />
+                  Descargar
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="flex-1 h-full bg-zinc-100">
+            {loadingPreview ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+                  <p className="text-zinc-500">Cargando PDF...</p>
+                </div>
+              </div>
+            ) : previewUrl ? (
+              <iframe
+                src={previewUrl}
+                className="w-full h-[calc(90vh-80px)] border-0"
+                title={previewPdf?.filename}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-zinc-500">No se pudo cargar el PDF</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Info Card */}
       {pdfs.length > 0 && (
@@ -207,7 +309,7 @@ const PDFs = () => {
                 <p className="text-sm text-zinc-600 leading-relaxed">
                   Cada PDF consolidado contiene documentos relacionados ordenados según el flujo de pago: 
                   Comprobante de Egreso → Cuenta Por Pagar → Factura → Soporte de Pago. 
-                  Todos los documentos están respaldados en la base de datos y pueden ser descargados en cualquier momento.
+                  Puedes ver el PDF directamente en el navegador o descargarlo para guardarlo.
                 </p>
               </div>
             </div>
