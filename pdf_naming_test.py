@@ -358,7 +358,7 @@ class PDFNamingTester:
         
         print("\n" + "─" * 50)
         success, valid_comprobantes = self.test_verify_analyzed_data(documents)
-        if not success:
+        if not success or not valid_comprobantes:
             self.log("❌ No valid comprobante_egreso documents found")
             return False
         
