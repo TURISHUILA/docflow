@@ -776,6 +776,43 @@ async def get_batch_documents(batch_id: str, authorization: str = Header(None)):
         "needs_regeneration": batch.get('needs_regeneration', False)
     }
 
+@api_router.delete("/batches/{batch_id}/documents/{doc_id}")
+async def remove_document_from_batch(batch_id: str, doc_id: str, authorization: str = Header(None)):
+    """Quita un documento de un lote (no lo elimina, solo lo saca del lote)"""
+    user = await get_current_user(authorization)
+    
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Lote no encontrado")
+    
+    if doc_id not in batch.get('documentos', []):
+        raise HTTPException(status_code=404, detail="Documento no encontrado en este lote")
+    
+    # Verificar que quede al menos 1 documento
+    if len(batch.get('documentos', [])) <= 1:
+        raise HTTPException(status_code=400, detail="No se puede quitar el único documento del lote. Elimine el lote completo.")
+    
+    # Quitar documento del lote
+    new_docs = [d for d in batch['documentos'] if d != doc_id]
+    await db.batches.update_one(
+        {"id": batch_id},
+        {"$set": {"documentos": new_docs, "needs_regeneration": True}}
+    )
+    
+    # Quitar batch_id del documento (liberarlo)
+    await db.documents.update_one(
+        {"id": doc_id},
+        {"$unset": {"batch_id": ""}}
+    )
+    
+    await log_action(user, "REMOVE_FROM_BATCH", f"Documento {doc_id} removido del lote {batch_id}")
+    
+    return {
+        "success": True, 
+        "message": "Documento removido del lote",
+        "remaining_documents": len(new_docs)
+    }
+
 @api_router.post("/batches/{batch_id}/regenerate-pdf")
 async def regenerate_pdf(batch_id: str, authorization: str = Header(None)):
     """Regenera el PDF consolidado de un lote (después de reemplazar documentos)"""
