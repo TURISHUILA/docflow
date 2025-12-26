@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { FileText, Search, Play, RefreshCw, Eye, CheckCircle, AlertTriangle, Loader2, Trash2, Calendar, FolderOpen } from 'lucide-react';
+import { FileText, Search, Play, RefreshCw, Eye, CheckCircle, AlertTriangle, Loader2, Trash2, Calendar, FolderOpen, Scissors, Layers } from 'lucide-react';
 
 const statusConfig = {
   cargado: { label: 'Pendiente', color: 'text-sky-600 bg-sky-50 border-sky-200', icon: FileText },
   en_proceso: { label: 'Validado', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: CheckCircle },
   terminado: { label: 'Terminado', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: CheckCircle },
   revision: { label: 'Revisar', color: 'text-rose-600 bg-rose-50 border-rose-200', icon: AlertTriangle },
+  dividido: { label: 'Dividido', color: 'text-purple-600 bg-purple-50 border-purple-200', icon: Layers },
 };
 
 const typeLabels = {
@@ -36,6 +37,8 @@ const Documents = () => {
   const [deleting, setDeleting] = useState({});
   const [deletingDate, setDeletingDate] = useState({});
   const [activeTab, setActiveTab] = useState('list');
+  const [splitting, setSplitting] = useState({});
+  const [splitResult, setSplitResult] = useState(null);
 
   useEffect(() => {
     fetchDocuments();
