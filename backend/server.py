@@ -1561,8 +1561,11 @@ async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(N
     pdf_writer.write(pdf_buffer)
     pdf_data = pdf_buffer.getvalue()
     
-    # Guardar metadata del PDF consolidado
-    pdf_filename = f"Documentos_Consolidados_{consecutive_number}.pdf"
+    # Generar nombre del PDF basado en el comprobante de egreso
+    pdf_filename = generate_pdf_filename_from_batch(sorted_docs)
+    if not pdf_filename:
+        # Fallback a consecutivo si no hay comprobante de egreso válido
+        pdf_filename = f"Documentos_Consolidados_{consecutive_number}.pdf"
     
     consolidated = ConsolidatedPDF(
         batch_id=batch_id,
