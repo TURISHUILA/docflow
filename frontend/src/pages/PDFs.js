@@ -493,6 +493,29 @@ const PDFs = () => {
                                 </span>
                               )}
                             </Button>
+                            
+                            {/* Botón eliminar del lote */}
+                            {pdfDetails.documents?.length > 1 && (
+                              <Button
+                                onClick={() => removeDocumentFromBatch(doc)}
+                                disabled={removingDoc[doc.id]}
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 w-full border-rose-300 text-rose-600 hover:bg-rose-50"
+                              >
+                                {removingDoc[doc.id] ? (
+                                  <span className="flex items-center gap-2">
+                                    <Loader2 size={14} className="animate-spin" />
+                                    Quitando...
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-2">
+                                    <Trash2 size={14} />
+                                    Quitar del PDF
+                                  </span>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
