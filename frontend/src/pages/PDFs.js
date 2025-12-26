@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Download, Calendar, FolderArchive, Eye, Maximize2, Users, DollarSign, Loader2, Upload, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
+import { FileText, Download, Calendar, FolderArchive, Eye, Maximize2, Users, DollarSign, Loader2, Upload, RefreshCw, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
 
 const typeLabels = {
   comprobante_egreso: 'Comprobante Egreso',
@@ -28,6 +28,7 @@ const PDFs = () => {
   const [replacingDoc, setReplacingDoc] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [removingDoc, setRemovingDoc] = useState({});
   const fileInputRef = useRef(null);
 
   useEffect(() => {
