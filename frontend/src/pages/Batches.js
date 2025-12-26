@@ -419,6 +419,26 @@ const Batches = () => {
                       Descargar PDF
                     </Button>
                   )}
+                  
+                  {/* Botón eliminar lote */}
+                  <Button
+                    onClick={() => deleteBatch(batch.id)}
+                    disabled={deleting[batch.id]}
+                    variant="outline"
+                    className="w-full border-rose-300 text-rose-600 hover:bg-rose-50"
+                  >
+                    {deleting[batch.id] ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin" />
+                        Eliminando...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Trash2 size={16} />
+                        Eliminar Lote
+                      </span>
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
             ))}
