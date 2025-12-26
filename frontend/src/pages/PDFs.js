@@ -206,6 +206,41 @@ const PDFs = () => {
     }
   };
 
+  const handleAddDocClick = () => {
+    setShowAddForm(true);
+  };
+
+  const handleAddFileSelect = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !pdfDetails?.batch?.id) return;
+
+    setAddingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tipo_documento', newDocType);
+
+      await axios.post(`${API}/batches/${pdfDetails.batch.id}/add-document`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      toast.success(`Documento "${file.name}" agregado al PDF`);
+      setShowAddForm(false);
+      setNewDocType('comprobante_egreso');
+      
+      // Recargar detalles del PDF
+      fetchPdfDetails(previewPdf.id);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al agregar documento');
+    } finally {
+      setAddingDoc(false);
+      event.target.value = '';
+    }
+  };
+
   const regeneratePDF = async () => {
     if (!pdfDetails?.batch?.id) return;
 
