@@ -760,6 +760,46 @@ async def list_pdfs(authorization: str = Header(None)):
     
     return {"pdfs": pdfs}
 
+@api_router.get("/pdfs/{pdf_id}/details")
+async def get_pdf_details(pdf_id: str, authorization: str = Header(None)):
+    """Obtiene los detalles completos de un PDF consolidado incluyendo los documentos que lo conforman"""
+    user = await get_current_user(authorization)
+    
+    pdf = await db.consolidated_pdfs.find_one({"id": pdf_id}, {"_id": 0, "pdf_data": 0})
+    if not pdf:
+        raise HTTPException(status_code=404, detail="PDF no encontrado")
+    
+    # Obtener el batch asociado
+    batch = await db.batches.find_one({"id": pdf['batch_id']}, {"_id": 0})
+    
+    # Obtener los documentos del batch
+    documents = []
+    if batch and batch.get('documentos'):
+        docs = await db.documents.find(
+            {"id": {"$in": batch['documentos']}},
+            {"_id": 0, "file_data": 0}
+        ).to_list(100)
+        
+        # Ordenar por tipo de documento
+        order = ['comprobante_egreso', 'cuenta_por_pagar', 'soporte_pago', 'factura']
+        documents = sorted(docs, key=lambda d: order.index(d['tipo_documento']) if d['tipo_documento'] in order else 999)
+    
+    # Calcular información resumida
+    terceros = list(set(d.get('tercero') for d in documents if d.get('tercero')))
+    valores = [d.get('valor') for d in documents if d.get('valor')]
+    
+    return {
+        "pdf": pdf,
+        "batch": batch,
+        "documents": documents,
+        "summary": {
+            "total_documentos": len(documents),
+            "terceros": terceros,
+            "valor_total": sum(valores) if valores else 0,
+            "tipos": list(set(d.get('tipo_documento') for d in documents))
+        }
+    }
+
 # User Management (Admin only)
 @api_router.get("/users/list")
 async def list_users(authorization: str = Header(None)):
