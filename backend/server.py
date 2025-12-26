@@ -181,9 +181,12 @@ async def analyze_document_with_gpt(file_path: str, mime_type: str) -> Dict[str,
             api_key=EMERGENT_LLM_KEY,
             session_id=str(uuid.uuid4()),
             system_message="""Eres un experto en análisis de documentos contables y financieros colombianos.
-Tu tarea es extraer información PRECISA de documentos de pago para poder correlacionarlos.
-Debes ser muy preciso con números, fechas y nombres de terceros.
-Los documentos típicos incluyen: comprobantes de egreso, cuentas por pagar, facturas y soportes de pago."""
+Tu tarea es extraer información EXACTA y PRECISA de documentos de pago.
+REGLAS CRÍTICAS:
+1. El TERCERO y el NIT deben corresponder al mismo beneficiario/proveedor
+2. El VALOR debe ser el monto total exacto del documento
+3. NO inventes datos - si no puedes leer algo claramente, usa null
+4. Lee TODO el documento antes de responder"""
         ).with_model("gemini", "gemini-2.5-flash")
         
         file_content = FileContentWithMimeType(
@@ -191,28 +194,36 @@ Los documentos típicos incluyen: comprobantes de egreso, cuentas por pagar, fac
             mime_type=mime_type
         )
         
-        prompt = """Analiza este documento financiero y extrae TODA la información en formato JSON.
+        prompt = """ANALIZA CUIDADOSAMENTE este documento financiero colombiano.
 
-IMPORTANTE: Extrae los datos EXACTOS del documento, sin inventar ni asumir nada.
+INSTRUCCIONES IMPORTANTES:
+1. Lee COMPLETAMENTE el documento antes de extraer datos
+2. El TERCERO es el beneficiario/proveedor que RECIBE el pago (no quien paga)
+3. El NIT debe corresponder EXACTAMENTE al TERCERO mencionado
+4. El VALOR es el monto TOTAL a pagar (busca "VALOR TOTAL", "TOTAL A PAGAR", "NETO A PAGAR")
+5. Si hay varios valores, usa el TOTAL final
 
-Responde SOLO con este JSON (sin texto adicional):
+CAMPOS A EXTRAER - Responde SOLO con este JSON:
 {
-    "tipo_documento": "comprobante_egreso" o "cuenta_por_pagar" o "factura" o "soporte_pago",
-    "numero_documento": "número del documento (ej: CE-2025-001, FV-9999)",
-    "valor": número decimal del valor total en COP (solo el número, ej: 5000000),
-    "fecha": "fecha en formato YYYY-MM-DD o DD/MM/YYYY",
-    "tercero": "nombre COMPLETO del beneficiario/proveedor/tercero",
-    "nit": "NIT o identificación del tercero",
-    "concepto": "concepto o descripción del pago",
-    "referencia_bancaria": "número de referencia bancaria si existe",
-    "banco": "nombre del banco si es soporte de pago"
+    "tipo_documento": "comprobante_egreso" | "cuenta_por_pagar" | "factura" | "soporte_pago",
+    "numero_documento": "número exacto del documento (CE-XXXX, CXP-XXXX, FV-XXXX)",
+    "valor": 0.00,
+    "fecha": "YYYY-MM-DD",
+    "tercero": "NOMBRE COMPLETO DEL BENEFICIARIO/PROVEEDOR",
+    "nit": "NIT o cédula del tercero (solo números y guión de verificación)",
+    "concepto": "descripción o concepto del pago",
+    "referencia_bancaria": "referencia si es transferencia bancaria",
+    "banco": "nombre del banco si aplica"
 }
 
-Si un campo no existe, usa null. Se MUY PRECISO con:
-- Valor: debe ser el monto EXACTO en números
-- Tercero: nombre COMPLETO sin errores de tipeo
-- Fecha: formato exacto del documento
-"""
+VALIDACIONES:
+- Si el tercero es "AVIANCA", el NIT debe ser de Avianca (890903407)
+- Si el tercero es una persona natural, el NIT será su cédula
+- El valor debe ser un número positivo sin símbolos de moneda
+- La fecha debe estar en formato YYYY-MM-DD
+
+Si un campo no se puede determinar con certeza, usa null.
+Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales."""
         
         message = UserMessage(
             text=prompt,
@@ -233,8 +244,11 @@ Si un campo no existe, usa null. Se MUY PRECISO con:
             
             # Validar y limpiar datos
             if data.get('valor'):
-                # Limpiar valor (remover comas, símbolos)
-                valor_str = str(data['valor']).replace(',', '').replace('$', '').replace('.00', '').strip()
+                # Limpiar valor (remover comas, símbolos, puntos de miles)
+                valor_str = str(data['valor']).replace(',', '').replace('$', '').replace(' ', '')
+                # Si tiene punto como separador de miles (ej: 1.000.000), removerlo
+                if valor_str.count('.') > 1:
+                    valor_str = valor_str.replace('.', '')
                 try:
                     data['valor'] = float(valor_str)
                 except:
@@ -244,10 +258,15 @@ Si un campo no existe, usa null. Se MUY PRECISO con:
             if data.get('tercero'):
                 data['tercero'] = ' '.join(data['tercero'].upper().split())
             
+            # Limpiar NIT (solo números y guión)
+            if data.get('nit'):
+                nit_str = str(data['nit']).replace('.', '').replace(' ', '')
+                data['nit'] = nit_str
+            
             return data
         else:
-            logging.warning(f"No se pudo parsear JSON de GPT-5.2: {response_clean[:200]}")
-            return {"raw_response": response_clean}
+            logging.warning(f"No se pudo parsear JSON de Gemini: {response_clean[:200]}")
+            return {"raw_response": response_clean, "error": "No se pudo extraer JSON de la respuesta"}
             
     except Exception as e:
         logging.error(f"Error analyzing document: {str(e)}")
