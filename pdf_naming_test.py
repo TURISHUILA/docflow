@@ -129,8 +129,8 @@ class PDFNamingTester:
         
         valid_comprobantes = []
         for doc in comprobantes:
-            numero = doc.get('numero_documento') or doc.get('analisis_completo', {}).get('numero_documento')
-            tercero = doc.get('tercero') or doc.get('analisis_completo', {}).get('tercero')
+            numero = doc.get('numero_documento') or (doc.get('analisis_completo', {}) or {}).get('numero_documento')
+            tercero = doc.get('tercero') or (doc.get('analisis_completo', {}) or {}).get('tercero')
             
             if numero and tercero:
                 valid_comprobantes.append(doc)
