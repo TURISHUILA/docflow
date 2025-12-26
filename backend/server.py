@@ -776,6 +776,67 @@ async def get_batch_documents(batch_id: str, authorization: str = Header(None)):
         "needs_regeneration": batch.get('needs_regeneration', False)
     }
 
+@api_router.post("/batches/{batch_id}/add-document")
+async def add_document_to_batch(
+    batch_id: str,
+    tipo_documento: str = Form(...),
+    file: UploadFile = File(...),
+    authorization: str = Header(None)
+):
+    """Agrega un nuevo documento a un lote existente"""
+    user = await get_current_user(authorization)
+    
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Lote no encontrado")
+    
+    # Validar tipo de documento
+    valid_types = ['comprobante_egreso', 'cuenta_por_pagar', 'factura', 'soporte_pago']
+    if tipo_documento not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Tipo de documento inválido. Debe ser uno de: {valid_types}")
+    
+    # Leer archivo
+    file_data = await file.read()
+    
+    # Validar tamaño
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    if len(file_data) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="El archivo excede el tamaño máximo de 10MB")
+    
+    # Crear nuevo documento
+    doc_id = str(uuid.uuid4())
+    doc_metadata = {
+        "id": doc_id,
+        "filename": file.filename,
+        "tipo_documento": tipo_documento,
+        "uploaded_by": user.id,
+        "file_size": len(file_data),
+        "mime_type": file.content_type or "application/octet-stream",
+        "status": DocumentStatus.CARGADO,
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        "batch_id": batch_id,
+        "file_data": file_data
+    }
+    
+    await db.documents.insert_one(doc_metadata)
+    
+    # Agregar documento al lote
+    new_docs = batch.get('documentos', []) + [doc_id]
+    await db.batches.update_one(
+        {"id": batch_id},
+        {"$set": {"documentos": new_docs, "needs_regeneration": True, "status": DocumentStatus.EN_PROCESO}}
+    )
+    
+    await log_action(user, "ADD_TO_BATCH", f"Documento {file.filename} agregado al lote {batch_id}")
+    
+    return {
+        "success": True,
+        "message": "Documento agregado al lote",
+        "document_id": doc_id,
+        "filename": file.filename,
+        "total_documents": len(new_docs)
+    }
+
 @api_router.delete("/batches/{batch_id}/documents/{doc_id}")
 async def remove_document_from_batch(batch_id: str, doc_id: str, authorization: str = Header(None)):
     """Quita un documento de un lote (no lo elimina, solo lo saca del lote)"""
