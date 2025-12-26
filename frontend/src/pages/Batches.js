@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { FolderArchive, Download, Plus, FileText, Sparkles, Check, X, Loader2 } from 'lucide-react';
+import { FolderArchive, Download, Plus, FileText, Sparkles, Check, X, Loader2, Trash2 } from 'lucide-react';
 
 const statusConfig = {
   cargado: { label: 'Cargado', color: 'text-sky-600 bg-sky-50 border-sky-200' },
@@ -30,6 +30,7 @@ const Batches = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [creatingSuggestion, setCreatingSuggestion] = useState({});
+  const [deleting, setDeleting] = useState({});
 
   useEffect(() => {
     fetchBatches();
@@ -48,6 +49,27 @@ const Batches = () => {
       console.error('Error fetching suggestions:', error);
     } finally {
       setLoadingSuggestions(false);
+    }
+  };
+
+  const deleteBatch = async (batchId) => {
+    if (!window.confirm('¿Estás seguro de eliminar este lote? Se eliminará también el PDF consolidado.')) {
+      return;
+    }
+    
+    setDeleting(prev => ({ ...prev, [batchId]: true }));
+    try {
+      await axios.delete(`${API}/batches/${batchId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Lote eliminado exitosamente');
+      fetchBatches();
+      fetchDocuments();
+      fetchSuggestions();
+    } catch (error) {
+      toast.error('Error al eliminar lote');
+    } finally {
+      setDeleting(prev => ({ ...prev, [batchId]: false }));
     }
   };
 
