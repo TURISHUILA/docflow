@@ -342,13 +342,27 @@ const Documents = () => {
                                 </Button>
                               )}
                               
+                              {/* Botón para dividir PDF multipágina */}
+                              {doc.filename?.toLowerCase().endsWith('.pdf') && doc.status !== 'dividido' && !doc.parent_document_id && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  onClick={() => splitDocument(doc.id, doc.filename)} 
+                                  disabled={splitting[doc.id]} 
+                                  className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                                  title="Dividir PDF multipágina y extraer documentos"
+                                >
+                                  {splitting[doc.id] ? <Loader2 size={14} className="animate-spin" /> : <><Scissors size={14} className="mr-1" />Dividir</>}
+                                </Button>
+                              )}
+                              
                               {(doc.status === 'en_proceso' || doc.status === 'revision') && (
                                 <Button size="sm" variant="outline" onClick={() => analyzeDocument(doc.id, true)} disabled={analyzing[doc.id]} className="border-amber-300 text-amber-700 hover:bg-amber-50">
                                   {analyzing[doc.id] ? <Loader2 size={14} className="animate-spin" /> : <><RefreshCw size={14} className="mr-1" />Re-validar</>}
                                 </Button>
                               )}
                               
-                              {!doc.batch_id && (
+                              {!doc.batch_id && doc.status !== 'dividido' && (
                                 <Button size="sm" variant="ghost" onClick={() => deleteDocument(doc.id, doc.filename)} disabled={deleting[doc.id]} className="text-rose-600 hover:text-rose-700 hover:bg-rose-50">
                                   {deleting[doc.id] ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                 </Button>
