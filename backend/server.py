@@ -723,11 +723,15 @@ async def get_documents_by_date(authorization: str = Header(None)):
     by_date = {}
     for doc in docs:
         # Extraer solo la fecha (sin hora)
-        created = doc.get('created_at', '')
-        if isinstance(created, str):
-            date_str = created[:10]  # YYYY-MM-DD
+        created = doc.get('created_at')
+        if created:
+            if isinstance(created, str):
+                date_str = created[:10]  # YYYY-MM-DD
+            else:
+                date_str = created.strftime('%Y-%m-%d') if created else 'Sin fecha'
         else:
-            date_str = created.strftime('%Y-%m-%d') if created else 'Sin fecha'
+            # Si no tiene fecha, usar fecha actual
+            date_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         
         if date_str not in by_date:
             by_date[date_str] = {
