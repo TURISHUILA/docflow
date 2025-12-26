@@ -14,9 +14,10 @@ import bcrypt
 import jwt
 from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
 import io
-from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 from PIL import Image
 import json
+import tempfile
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
