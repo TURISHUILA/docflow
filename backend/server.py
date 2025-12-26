@@ -273,6 +273,105 @@ Responde ÚNICAMENTE con el JSON, sin explicaciones adicionales."""
         logging.error(f"Error analyzing document: {str(e)}")
         return {"error": str(e)}
 
+async def analyze_pdf_page(page_path: str, page_num: int) -> Dict[str, Any]:
+    """Analiza una página individual de un PDF para extraer información"""
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=str(uuid.uuid4()),
+            system_message="""Eres un experto en análisis de documentos contables colombianos.
+Analiza esta página/imagen de un documento financiero y extrae la información.
+Si la página contiene un documento válido (factura, comprobante, soporte de pago, etc.), extrae los datos.
+Si la página está en blanco, es una portada, o no contiene información financiera relevante, indica que no es válida."""
+        ).with_model("gemini", "gemini-2.5-flash")
+        
+        file_content = FileContentWithMimeType(
+            file_path=page_path,
+            mime_type="application/pdf"
+        )
+        
+        prompt = """Analiza esta página de un documento financiero.
+
+PRIMERO determina si esta página contiene un documento financiero válido:
+- ¿Es una factura, comprobante de egreso, cuenta por pagar, o soporte de pago?
+- ¿Contiene información de tercero/beneficiario y valor?
+- ¿O es una página en blanco, portada, índice, o sin información relevante?
+
+Responde con este JSON:
+{
+    "es_documento_valido": true o false,
+    "tipo_documento": "comprobante_egreso" | "cuenta_por_pagar" | "factura" | "soporte_pago" | "otro" | null,
+    "numero_documento": "número del documento si existe",
+    "valor": número decimal o null,
+    "fecha": "YYYY-MM-DD" o null,
+    "tercero": "NOMBRE DEL BENEFICIARIO/PROVEEDOR" o null,
+    "nit": "NIT o cédula" o null,
+    "concepto": "descripción del pago" o null,
+    "referencia_bancaria": "referencia si existe" o null,
+    "banco": "nombre del banco si aplica" o null,
+    "descripcion_pagina": "breve descripción de qué contiene esta página"
+}
+
+Si no es un documento válido, solo incluye:
+{
+    "es_documento_valido": false,
+    "descripcion_pagina": "descripción de qué contiene (ej: página en blanco, portada, etc.)"
+}"""
+        
+        message = UserMessage(
+            text=prompt,
+            file_contents=[file_content]
+        )
+        
+        response = await chat.send_message(message)
+        response_clean = response.strip()
+        
+        import re
+        json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_clean, re.DOTALL)
+        
+        if json_match:
+            data = json.loads(json_match.group())
+            data['page_number'] = page_num
+            
+            # Limpiar valor
+            if data.get('valor'):
+                valor_str = str(data['valor']).replace(',', '').replace('$', '').replace(' ', '')
+                if valor_str.count('.') > 1:
+                    valor_str = valor_str.replace('.', '')
+                try:
+                    data['valor'] = float(valor_str)
+                except:
+                    data['valor'] = None
+            
+            # Normalizar tercero
+            if data.get('tercero'):
+                data['tercero'] = ' '.join(data['tercero'].upper().split())
+            
+            return data
+        else:
+            return {"es_documento_valido": False, "page_number": page_num, "error": "No se pudo analizar"}
+            
+    except Exception as e:
+        logging.error(f"Error analyzing page {page_num}: {str(e)}")
+        return {"es_documento_valido": False, "page_number": page_num, "error": str(e)}
+
+def split_pdf_to_pages(pdf_data: bytes) -> List[bytes]:
+    """Divide un PDF en páginas individuales, cada una como bytes de PDF"""
+    pages = []
+    try:
+        reader = PdfReader(io.BytesIO(pdf_data))
+        for page_num in range(len(reader.pages)):
+            writer = PdfWriter()
+            writer.add_page(reader.pages[page_num])
+            
+            page_buffer = io.BytesIO()
+            writer.write(page_buffer)
+            page_buffer.seek(0)
+            pages.append(page_buffer.read())
+    except Exception as e:
+        logging.error(f"Error splitting PDF: {str(e)}")
+    return pages
+
 # Auth Endpoints
 @api_router.post("/auth/register", response_model=User)
 async def register(user_data: UserCreate, authorization: str = Header(None)):
