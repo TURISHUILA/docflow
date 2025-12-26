@@ -134,6 +134,29 @@ const Documents = () => {
     }
   };
 
+  const splitDocument = async (docId, filename) => {
+    setSplitting(prev => ({ ...prev, [docId]: true }));
+    try {
+      const response = await axios.post(`${API}/documents/${docId}/split-pages`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        toast.success(`PDF dividido: ${response.data.valid_documents_created} documentos extraídos de ${response.data.total_pages} páginas`);
+        setSplitResult(response.data);
+      } else {
+        toast.info(response.data.message);
+      }
+      
+      fetchDocuments();
+      fetchDocumentsByDate();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al dividir PDF');
+    } finally {
+      setSplitting(prev => ({ ...prev, [docId]: false }));
+    }
+  };
+
   const processAllLoaded = async () => {
     const loadedDocs = documents.filter(doc => doc.status === 'cargado');
     
