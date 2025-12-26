@@ -6,7 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { FileText, Download, Calendar, User, FolderArchive, Eye, X, Maximize2 } from 'lucide-react';
+import { FileText, Download, Calendar, FolderArchive, Eye, Maximize2, Users, DollarSign, Loader2 } from 'lucide-react';
+
+const typeLabels = {
+  comprobante_egreso: 'Comprobante Egreso',
+  cuenta_por_pagar: 'Cuenta Por Pagar',
+  factura: 'Factura',
+  soporte_pago: 'Soporte de Pago',
+};
 
 const PDFs = () => {
   const { token, API } = useAuth();
@@ -16,12 +23,13 @@ const PDFs = () => {
   const [previewPdf, setPreviewPdf] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [pdfDetails, setPdfDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     fetchPDFs();
   }, []);
 
-  // Limpiar URL cuando se cierra el preview
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -41,7 +49,9 @@ const PDFs = () => {
         })
       ]);
 
-      setPdfs(pdfsResponse.data.pdfs);
+      // Filtrar PDFs vacíos (menos de 1KB probablemente están vacíos)
+      const validPdfs = pdfsResponse.data.pdfs.filter(pdf => pdf.file_size > 1000);
+      setPdfs(validPdfs);
       
       const batchMap = {};
       batchesResponse.data.batches.forEach(batch => {
@@ -55,9 +65,26 @@ const PDFs = () => {
     }
   };
 
+  const fetchPdfDetails = async (pdfId) => {
+    setLoadingDetails(true);
+    try {
+      const response = await axios.get(`${API}/pdfs/${pdfId}/details`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPdfDetails(response.data);
+    } catch (error) {
+      toast.error('Error al cargar detalles del PDF');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   const openPreview = async (pdf) => {
     setLoadingPreview(true);
     setPreviewPdf(pdf);
+    
+    // Cargar detalles del PDF
+    fetchPdfDetails(pdf.id);
     
     try {
       const response = await axios.get(`${API}/pdfs/${pdf.id}/download`, {
@@ -81,6 +108,7 @@ const PDFs = () => {
     }
     setPreviewPdf(null);
     setPreviewUrl(null);
+    setPdfDetails(null);
   };
 
   const downloadPDF = async (pdf) => {
@@ -129,7 +157,7 @@ const PDFs = () => {
     <div className="space-y-6" data-testid="pdfs-page">
       <div>
         <h1 className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">PDFs Consolidados</h1>
-        <p className="text-zinc-500 mt-2">Documentos de pago consolidados listos para ver y descargar</p>
+        <p className="text-zinc-500 mt-2">Documentos de pago unidos por tercero y valor</p>
       </div>
 
       {pdfs.length === 0 ? (
@@ -138,7 +166,7 @@ const PDFs = () => {
             <FileText size={48} className="mx-auto text-zinc-300 mb-3" />
             <p className="text-zinc-500 mb-2">No hay PDFs consolidados generados</p>
             <p className="text-sm text-zinc-400">
-              Crea un lote de documentos y genera un PDF consolidado para verlos aquí
+              Ve a "Lotes" y crea un lote desde las sugerencias de IA para generar PDFs unidos
             </p>
           </CardContent>
         </Card>
@@ -153,46 +181,28 @@ const PDFs = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-xl flex items-center gap-2 mb-2">
-                        <FileText size={24} className="text-emerald-600" />
+                      <CardTitle className="text-lg flex items-center gap-2 mb-2">
+                        <FileText size={20} className="text-emerald-600" />
                         <span className="truncate">{pdf.filename}</span>
                       </CardTitle>
                       <CardDescription className="flex items-center gap-2">
                         <FolderArchive size={14} />
-                        Lote {pdf.batch_id.substring(0, 8)}
+                        {numDocs} documentos unidos
                       </CardDescription>
                     </div>
                     <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                      <Eye size={12} className="mr-1" />
-                      Listo
+                      {formatFileSize(pdf.file_size)}
                     </Badge>
                   </div>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3 p-4 bg-zinc-50 rounded-lg border border-zinc-200">
-                    <div>
-                      <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">
-                        Documentos
-                      </p>
-                      <p className="text-lg font-bold text-zinc-900 tabular-nums">{numDocs}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1">
-                        Tamaño
-                      </p>
-                      <p className="text-lg font-bold text-zinc-900 tabular-nums">
-                        {formatFileSize(pdf.file_size)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-zinc-600">
+                  <div className="text-sm text-zinc-600">
+                    <div className="flex items-center gap-2">
                       <Calendar size={14} className="text-zinc-400" />
-                      <span>Generado: {new Date(pdf.created_at).toLocaleString('es-ES', {
+                      <span>{new Date(pdf.created_at).toLocaleString('es-ES', {
                         year: 'numeric',
-                        month: 'long',
+                        month: 'short',
                         day: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
@@ -200,32 +210,14 @@ const PDFs = () => {
                     </div>
                   </div>
 
-                  {batch && (
-                    <div className="pt-3 border-t border-zinc-200">
-                      <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-2">
-                        Contenido del PDF
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {['Comprobante Egreso', 'Cuenta Por Pagar', 'Factura', 'Soporte Pago']
-                          .slice(0, numDocs)
-                          .map((doc, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs border-zinc-300 text-zinc-600">
-                              {doc}
-                            </Badge>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Botones de acción */}
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex gap-2">
                     <Button
                       onClick={() => openPreview(pdf)}
                       variant="outline"
                       className="flex-1 border-zinc-300 hover:bg-zinc-100"
                     >
                       <Eye size={18} className="mr-2" />
-                      Ver PDF
+                      Ver Documentos Unidos
                     </Button>
                     <Button
                       onClick={() => downloadPDF(pdf)}
@@ -242,9 +234,9 @@ const PDFs = () => {
         </div>
       )}
 
-      {/* Modal de Vista Previa del PDF */}
+      {/* Modal de Vista Previa del PDF con documentos unidos */}
       <Dialog open={!!previewPdf} onOpenChange={(open) => !open && closePreview()}>
-        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden">
+        <DialogContent className="max-w-7xl w-[95vw] h-[90vh] p-0 overflow-hidden">
           <DialogHeader className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2 text-lg">
@@ -259,7 +251,7 @@ const PDFs = () => {
                   className="border-zinc-300"
                 >
                   <Maximize2 size={16} className="mr-2" />
-                  Abrir en nueva pestaña
+                  Pantalla Completa
                 </Button>
                 <Button
                   onClick={() => previewPdf && downloadPDF(previewPdf)}
@@ -267,31 +259,113 @@ const PDFs = () => {
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   <Download size={16} className="mr-2" />
-                  Descargar
+                  Descargar PDF
                 </Button>
               </div>
             </div>
           </DialogHeader>
           
-          <div className="flex-1 h-full bg-zinc-100">
-            {loadingPreview ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-                  <p className="text-zinc-500">Cargando PDF...</p>
+          <div className="flex h-[calc(90vh-80px)]">
+            {/* Panel izquierdo: Detalles de documentos unidos */}
+            <div className="w-80 border-r border-zinc-200 bg-zinc-50 overflow-y-auto p-4">
+              <h3 className="font-semibold text-zinc-900 mb-4 flex items-center gap-2">
+                <Users size={18} className="text-emerald-600" />
+                Documentos Unidos
+              </h3>
+              
+              {loadingDetails ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="animate-spin text-zinc-400" size={24} />
                 </div>
-              </div>
-            ) : previewUrl ? (
-              <iframe
-                src={previewUrl}
-                className="w-full h-[calc(90vh-80px)] border-0"
-                title={previewPdf?.filename}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-zinc-500">No se pudo cargar el PDF</p>
-              </div>
-            )}
+              ) : pdfDetails ? (
+                <div className="space-y-4">
+                  {/* Resumen */}
+                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <p className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-2">Resumen</p>
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium text-emerald-800">
+                        {pdfDetails.summary?.terceros?.[0] || 'Sin tercero'}
+                      </p>
+                      <p className="text-emerald-700 flex items-center gap-1">
+                        <DollarSign size={14} />
+                        ${pdfDetails.summary?.valor_total?.toLocaleString('es-CO') || 0}
+                      </p>
+                      <p className="text-emerald-600 text-xs">
+                        {pdfDetails.summary?.total_documentos || 0} documentos
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Lista de documentos */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">
+                      Orden en el PDF:
+                    </p>
+                    {pdfDetails.documents?.map((doc, index) => (
+                      <div key={doc.id} className="p-3 bg-white rounded-lg border border-zinc-200">
+                        <div className="flex items-start gap-2">
+                          <span className="w-6 h-6 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center flex-shrink-0">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-zinc-900 truncate" title={doc.filename}>
+                              {doc.filename}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              {typeLabels[doc.tipo_documento] || doc.tipo_documento}
+                            </p>
+                            {doc.valor && (
+                              <p className="text-xs font-medium text-emerald-600 mt-1">
+                                ${doc.valor.toLocaleString('es-CO')}
+                              </p>
+                            )}
+                            {doc.tercero && (
+                              <p className="text-xs text-zinc-600 mt-1 truncate" title={doc.tercero}>
+                                {doc.tercero}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-zinc-500 text-sm">No hay detalles disponibles</p>
+              )}
+            </div>
+            
+            {/* Panel derecho: Vista previa del PDF */}
+            <div className="flex-1 bg-zinc-100">
+              {loadingPreview ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <Loader2 className="animate-spin h-12 w-12 text-emerald-600 mx-auto mb-4" />
+                    <p className="text-zinc-500">Cargando PDF...</p>
+                  </div>
+                </div>
+              ) : previewUrl ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-full border-0"
+                  title={previewPdf?.filename}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <FileText size={48} className="mx-auto text-zinc-300 mb-3" />
+                    <p className="text-zinc-500">No se pudo cargar el PDF</p>
+                    <Button
+                      onClick={() => previewPdf && downloadPDF(previewPdf)}
+                      className="mt-4"
+                    >
+                      <Download size={16} className="mr-2" />
+                      Descargar en su lugar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -307,9 +381,9 @@ const PDFs = () => {
               <div>
                 <h3 className="font-semibold text-zinc-900 mb-1">Sobre los PDFs Consolidados</h3>
                 <p className="text-sm text-zinc-600 leading-relaxed">
-                  Cada PDF consolidado contiene documentos relacionados ordenados según el flujo de pago: 
-                  Comprobante de Egreso → Cuenta Por Pagar → Factura → Soporte de Pago. 
-                  Puedes ver el PDF directamente en el navegador o descargarlo para guardarlo.
+                  Cada PDF contiene los documentos originales unidos en este orden: 
+                  <strong> Comprobante de Egreso → Cuenta Por Pagar → Soporte de Pago → Factura</strong>. 
+                  Los documentos se agrupan automáticamente por tercero y valor coincidente.
                 </p>
               </div>
             </div>
