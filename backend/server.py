@@ -722,13 +722,13 @@ async def get_documents_by_date(authorization: str = Header(None)):
     # Agrupar por fecha
     by_date = {}
     for doc in docs:
-        # Extraer solo la fecha (sin hora)
-        created = doc.get('created_at')
-        if created:
-            if isinstance(created, str):
-                date_str = created[:10]  # YYYY-MM-DD
+        # Extraer solo la fecha (sin hora) - usar uploaded_at
+        uploaded = doc.get('uploaded_at') or doc.get('created_at')
+        if uploaded:
+            if isinstance(uploaded, str):
+                date_str = uploaded[:10]  # YYYY-MM-DD
             else:
-                date_str = created.strftime('%Y-%m-%d') if created else 'Sin fecha'
+                date_str = uploaded.strftime('%Y-%m-%d')
         else:
             # Si no tiene fecha, usar fecha actual
             date_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
