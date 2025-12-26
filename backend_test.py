@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 class DocFlowAPITester:
-    def __init__(self, base_url="https://smartdoc-24.preview.emergentagent.com"):
+    def __init__(self, base_url="https://docflowpro-1.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
