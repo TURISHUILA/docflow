@@ -644,6 +644,148 @@ async def list_batches(authorization: str = Header(None)):
     
     return {"batches": batches}
 
+@api_router.delete("/batches/{batch_id}")
+async def delete_batch(batch_id: str, authorization: str = Header(None)):
+    """Elimina un lote y su PDF consolidado asociado"""
+    user = await get_current_user(authorization)
+    
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Lote no encontrado")
+    
+    # Eliminar PDF consolidado si existe
+    if batch.get('pdf_generado_id'):
+        await db.consolidated_pdfs.delete_one({"id": batch['pdf_generado_id']})
+    
+    # Liberar documentos del lote (quitar batch_id)
+    await db.documents.update_many(
+        {"batch_id": batch_id},
+        {"$unset": {"batch_id": ""}}
+    )
+    
+    # Eliminar el lote
+    await db.batches.delete_one({"id": batch_id})
+    
+    await log_action(user, "DELETE_BATCH", f"Eliminado lote {batch_id}")
+    
+    return {"success": True, "message": "Lote eliminado exitosamente"}
+
+@api_router.delete("/documents/{doc_id}")
+async def delete_document(doc_id: str, authorization: str = Header(None)):
+    """Elimina un documento individual"""
+    user = await get_current_user(authorization)
+    
+    doc = await db.documents.find_one({"id": doc_id}, {"_id": 0, "file_data": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    
+    # Verificar si el documento está en un lote
+    if doc.get('batch_id'):
+        raise HTTPException(status_code=400, detail="No se puede eliminar un documento que está en un lote. Elimine el lote primero.")
+    
+    await db.documents.delete_one({"id": doc_id})
+    
+    await log_action(user, "DELETE_DOCUMENT", f"Eliminado documento {doc['filename']}")
+    
+    return {"success": True, "message": "Documento eliminado exitosamente"}
+
+@api_router.delete("/documents/bulk")
+async def delete_documents_bulk(
+    document_ids: List[str],
+    authorization: str = Header(None)
+):
+    """Elimina múltiples documentos"""
+    user = await get_current_user(authorization)
+    
+    # Verificar que ningún documento esté en un lote
+    docs_in_batch = await db.documents.count_documents({
+        "id": {"$in": document_ids},
+        "batch_id": {"$exists": True, "$ne": None}
+    })
+    
+    if docs_in_batch > 0:
+        raise HTTPException(status_code=400, detail=f"{docs_in_batch} documento(s) están en lotes. Elimine los lotes primero.")
+    
+    result = await db.documents.delete_many({"id": {"$in": document_ids}})
+    
+    await log_action(user, "DELETE_DOCUMENTS_BULK", f"Eliminados {result.deleted_count} documentos")
+    
+    return {"success": True, "deleted_count": result.deleted_count}
+
+@api_router.get("/documents/by-date")
+async def get_documents_by_date(authorization: str = Header(None)):
+    """Obtiene documentos agrupados por fecha de subida"""
+    user = await get_current_user(authorization)
+    
+    docs = await db.documents.find({}, {"_id": 0, "file_data": 0}).to_list(10000)
+    
+    # Agrupar por fecha
+    by_date = {}
+    for doc in docs:
+        # Extraer solo la fecha (sin hora)
+        created = doc.get('created_at', '')
+        if isinstance(created, str):
+            date_str = created[:10]  # YYYY-MM-DD
+        else:
+            date_str = created.strftime('%Y-%m-%d') if created else 'Sin fecha'
+        
+        if date_str not in by_date:
+            by_date[date_str] = {
+                "date": date_str,
+                "documents": [],
+                "total_count": 0,
+                "has_batched": False
+            }
+        
+        by_date[date_str]["documents"].append(doc)
+        by_date[date_str]["total_count"] += 1
+        if doc.get('batch_id'):
+            by_date[date_str]["has_batched"] = True
+    
+    # Convertir a lista ordenada por fecha (más reciente primero)
+    result = sorted(by_date.values(), key=lambda x: x['date'], reverse=True)
+    
+    return {"groups": result}
+
+@api_router.delete("/documents/by-date/{date}")
+async def delete_documents_by_date(date: str, authorization: str = Header(None)):
+    """Elimina todos los documentos de una fecha específica (formato: YYYY-MM-DD)"""
+    user = await get_current_user(authorization)
+    
+    # Buscar documentos de esa fecha
+    docs = await db.documents.find({}, {"_id": 0, "file_data": 0}).to_list(10000)
+    
+    docs_to_delete = []
+    batched_count = 0
+    
+    for doc in docs:
+        created = doc.get('created_at', '')
+        if isinstance(created, str):
+            date_str = created[:10]
+        else:
+            date_str = created.strftime('%Y-%m-%d') if created else ''
+        
+        if date_str == date:
+            if doc.get('batch_id'):
+                batched_count += 1
+            else:
+                docs_to_delete.append(doc['id'])
+    
+    if batched_count > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"{batched_count} documento(s) están en lotes. Elimine los lotes primero."
+        )
+    
+    if not docs_to_delete:
+        return {"success": True, "deleted_count": 0, "message": "No hay documentos para eliminar en esta fecha"}
+    
+    result = await db.documents.delete_many({"id": {"$in": docs_to_delete}})
+    
+    await log_action(user, "DELETE_BY_DATE", f"Eliminados {result.deleted_count} documentos de {date}")
+    
+    return {"success": True, "deleted_count": result.deleted_count, "date": date}
+
 @api_router.post("/batches/{batch_id}/generate-pdf")
 async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(None)):
     user = await get_current_user(authorization)
