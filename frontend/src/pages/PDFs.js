@@ -29,7 +29,11 @@ const PDFs = () => {
   const [uploading, setUploading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [removingDoc, setRemovingDoc] = useState({});
+  const [addingDoc, setAddingDoc] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newDocType, setNewDocType] = useState('comprobante_egreso');
   const fileInputRef = useRef(null);
+  const addFileInputRef = useRef(null);
 
   useEffect(() => {
     fetchPDFs();
