@@ -506,6 +506,31 @@ async def list_documents(authorization: str = Header(None), status: Optional[str
     
     return {"documents": docs}
 
+@api_router.get("/documents/{doc_id}/view")
+async def view_document(doc_id: str, authorization: str = Header(None)):
+    """Obtiene el archivo original del documento para visualización"""
+    user = await get_current_user(authorization)
+    
+    doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    
+    if not doc.get('file_data'):
+        raise HTTPException(status_code=404, detail="El documento no tiene contenido")
+    
+    # Determinar content type
+    content_type = doc.get('mime_type', 'application/pdf')
+    filename = doc.get('filename', 'documento')
+    
+    return StreamingResponse(
+        io.BytesIO(doc['file_data']),
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f"inline; filename={filename}",
+            "Content-Length": str(len(doc['file_data']))
+        }
+    )
+
 @api_router.post("/documents/{doc_id}/analyze")
 async def analyze_document(doc_id: str, authorization: str = Header(None)):
     """
