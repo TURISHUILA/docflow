@@ -629,6 +629,172 @@ async def analyze_all_documents(authorization: str = Header(None)):
         "errors": errors if errors else None
     }
 
+@api_router.post("/documents/{doc_id}/split-pages")
+async def split_multipage_document(doc_id: str, authorization: str = Header(None)):
+    """
+    Procesa un PDF multipágina: divide en páginas, analiza cada una con IA,
+    y crea documentos individuales por cada página válida encontrada.
+    """
+    user = await get_current_user(authorization)
+    
+    # Obtener documento original
+    doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    
+    if not doc.get('file_data'):
+        raise HTTPException(status_code=400, detail="El documento no tiene contenido")
+    
+    # Verificar que sea PDF
+    if not doc.get('mime_type', '').lower().endswith('pdf') and not doc.get('filename', '').lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Solo se pueden dividir archivos PDF")
+    
+    # Dividir PDF en páginas
+    pages_data = split_pdf_to_pages(doc['file_data'])
+    
+    if len(pages_data) <= 1:
+        return {
+            "success": False,
+            "message": "El documento tiene solo 1 página, no es necesario dividir",
+            "total_pages": len(pages_data)
+        }
+    
+    created_docs = []
+    skipped_pages = []
+    
+    for page_num, page_data in enumerate(pages_data, 1):
+        # Guardar página temporalmente para análisis
+        temp_path = f"/tmp/page_{doc_id}_{page_num}.pdf"
+        with open(temp_path, "wb") as f:
+            f.write(page_data)
+        
+        # Analizar página con IA
+        analysis = await analyze_pdf_page(temp_path, page_num)
+        
+        # Limpiar archivo temporal
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+        
+        # Si la página contiene un documento válido, crear documento individual
+        if analysis.get('es_documento_valido', False) and analysis.get('tercero'):
+            new_doc_id = str(uuid.uuid4())
+            original_name = doc['filename'].replace('.pdf', '').replace('.PDF', '')
+            
+            new_doc = {
+                "id": new_doc_id,
+                "filename": f"{original_name}_pag{page_num}.pdf",
+                "tipo_documento": analysis.get('tipo_documento') or doc.get('tipo_documento'),
+                "uploaded_by": user.id,
+                "file_size": len(page_data),
+                "mime_type": "application/pdf",
+                "status": DocumentStatus.EN_PROCESO,
+                "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                "file_data": page_data,
+                "parent_document_id": doc_id,
+                "page_number": page_num,
+                "valor": analysis.get('valor'),
+                "tercero": analysis.get('tercero'),
+                "nit": analysis.get('nit'),
+                "fecha": analysis.get('fecha'),
+                "concepto": analysis.get('concepto'),
+                "numero_documento": analysis.get('numero_documento'),
+                "referencia_bancaria": analysis.get('referencia_bancaria'),
+                "banco": analysis.get('banco'),
+                "analisis_completo": analysis
+            }
+            
+            await db.documents.insert_one(new_doc)
+            
+            created_docs.append({
+                "id": new_doc_id,
+                "filename": new_doc['filename'],
+                "page_number": page_num,
+                "tipo_documento": new_doc['tipo_documento'],
+                "tercero": analysis.get('tercero'),
+                "valor": analysis.get('valor'),
+                "descripcion": analysis.get('descripcion_pagina')
+            })
+        else:
+            skipped_pages.append({
+                "page_number": page_num,
+                "reason": analysis.get('descripcion_pagina', 'Página sin documento válido')
+            })
+    
+    # Marcar documento original como "procesado/dividido"
+    await db.documents.update_one(
+        {"id": doc_id},
+        {"$set": {
+            "status": "dividido",
+            "split_into": [d['id'] for d in created_docs],
+            "total_pages": len(pages_data)
+        }}
+    )
+    
+    await log_action(user, "SPLIT_DOCUMENT", f"Documento {doc['filename']} dividido en {len(created_docs)} páginas válidas de {len(pages_data)} totales")
+    
+    return {
+        "success": True,
+        "message": f"PDF dividido exitosamente",
+        "original_document": doc['filename'],
+        "total_pages": len(pages_data),
+        "valid_documents_created": len(created_docs),
+        "skipped_pages": len(skipped_pages),
+        "created_documents": created_docs,
+        "skipped_details": skipped_pages
+    }
+
+@api_router.post("/documents/auto-split-all")
+async def auto_split_all_multipage(authorization: str = Header(None)):
+    """
+    Busca y procesa automáticamente todos los PDFs multipágina que no han sido divididos.
+    """
+    user = await get_current_user(authorization)
+    
+    # Buscar documentos PDF que tengan más de 1 página y no hayan sido divididos
+    docs = await db.documents.find(
+        {
+            "status": {"$in": [DocumentStatus.CARGADO, DocumentStatus.EN_PROCESO]},
+            "split_into": {"$exists": False},
+            "parent_document_id": {"$exists": False}  # No procesar páginas ya extraídas
+        },
+        {"_id": 0, "file_data": 0}
+    ).to_list(1000)
+    
+    results = []
+    
+    for doc in docs:
+        # Verificar si es PDF
+        if not doc.get('filename', '').lower().endswith('.pdf'):
+            continue
+        
+        # Obtener documento completo para verificar páginas
+        full_doc = await db.documents.find_one({"id": doc['id']}, {"_id": 0})
+        if not full_doc or not full_doc.get('file_data'):
+            continue
+        
+        # Verificar número de páginas
+        try:
+            reader = PdfReader(io.BytesIO(full_doc['file_data']))
+            num_pages = len(reader.pages)
+            
+            if num_pages > 1:
+                results.append({
+                    "id": doc['id'],
+                    "filename": doc['filename'],
+                    "pages": num_pages,
+                    "status": "pendiente_division"
+                })
+        except:
+            continue
+    
+    return {
+        "multipage_documents": results,
+        "total_found": len(results),
+        "message": f"Se encontraron {len(results)} documentos multipágina para dividir"
+    }
+
 # Batch Processing Endpoints
 @api_router.get("/documents/suggest-batches")
 async def suggest_batches(authorization: str = Header(None)):
