@@ -689,6 +689,191 @@ async def delete_document(doc_id: str, authorization: str = Header(None)):
     
     return {"success": True, "message": "Documento eliminado exitosamente"}
 
+@api_router.post("/documents/{doc_id}/replace")
+async def replace_document(
+    doc_id: str,
+    file: UploadFile = File(...),
+    authorization: str = Header(None)
+):
+    """Reemplaza un documento existente con un nuevo archivo"""
+    user = await get_current_user(authorization)
+    
+    # Buscar documento existente
+    existing_doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
+    if not existing_doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    
+    # Leer nuevo archivo
+    file_data = await file.read()
+    
+    # Validar tamaño
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    if len(file_data) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="El archivo excede el tamaño máximo de 10MB")
+    
+    # Actualizar documento con nuevo archivo
+    update_data = {
+        "filename": file.filename,
+        "file_data": file_data,
+        "file_size": len(file_data),
+        "mime_type": file.content_type or "application/octet-stream",
+        "replaced_at": datetime.now(timezone.utc).isoformat(),
+        "replaced_by": user.id,
+        # Resetear análisis para que se pueda re-validar
+        "status": DocumentStatus.CARGADO,
+        "valor": None,
+        "tercero": None,
+        "nit": None,
+        "concepto": None,
+        "fecha": None,
+        "numero_documento": None,
+        "referencia_bancaria": None,
+        "banco": None,
+        "analisis_completo": None
+    }
+    
+    await db.documents.update_one({"id": doc_id}, {"$set": update_data})
+    
+    # Si el documento está en un lote, marcar el lote como pendiente de regenerar PDF
+    if existing_doc.get('batch_id'):
+        await db.batches.update_one(
+            {"id": existing_doc['batch_id']},
+            {"$set": {"needs_regeneration": True, "status": DocumentStatus.EN_PROCESO}}
+        )
+    
+    await log_action(user, "REPLACE_DOCUMENT", f"Reemplazado documento {existing_doc['filename']} por {file.filename}")
+    
+    return {
+        "success": True, 
+        "message": "Documento reemplazado exitosamente",
+        "new_filename": file.filename,
+        "needs_revalidation": True,
+        "batch_needs_regeneration": existing_doc.get('batch_id') is not None
+    }
+
+@api_router.get("/batches/{batch_id}/documents")
+async def get_batch_documents(batch_id: str, authorization: str = Header(None)):
+    """Obtiene los documentos de un lote específico"""
+    user = await get_current_user(authorization)
+    
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Lote no encontrado")
+    
+    # Obtener documentos del lote
+    docs = await db.documents.find(
+        {"id": {"$in": batch.get('documentos', [])}},
+        {"_id": 0, "file_data": 0}
+    ).to_list(100)
+    
+    # Ordenar por tipo
+    order = ['comprobante_egreso', 'cuenta_por_pagar', 'soporte_pago', 'factura']
+    docs = sorted(docs, key=lambda d: order.index(d['tipo_documento']) if d['tipo_documento'] in order else 999)
+    
+    return {
+        "batch": batch,
+        "documents": docs,
+        "needs_regeneration": batch.get('needs_regeneration', False)
+    }
+
+@api_router.post("/batches/{batch_id}/regenerate-pdf")
+async def regenerate_pdf(batch_id: str, authorization: str = Header(None)):
+    """Regenera el PDF consolidado de un lote (después de reemplazar documentos)"""
+    user = await get_current_user(authorization)
+    
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Lote no encontrado")
+    
+    # Eliminar PDF anterior si existe
+    if batch.get('pdf_generado_id'):
+        await db.consolidated_pdfs.delete_one({"id": batch['pdf_generado_id']})
+    
+    # Generar nuevo consecutivo
+    current_year = datetime.now(timezone.utc).year
+    count = await db.consolidated_pdfs.count_documents({}) + 1
+    consecutive_number = f"{current_year}-{count:04d}"
+    
+    # Obtener documentos del lote
+    docs = await db.documents.find(
+        {"id": {"$in": batch['documentos']}},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    # Ordenar documentos
+    order = [
+        DocumentType.COMPROBANTE_EGRESO,
+        DocumentType.CUENTA_POR_PAGAR,
+        DocumentType.SOPORTE_PAGO,
+        DocumentType.FACTURA
+    ]
+    sorted_docs = sorted(docs, key=lambda d: order.index(d['tipo_documento']) if d['tipo_documento'] in order else 999)
+    
+    # Crear PDF consolidado
+    merger = PdfMerger()
+    temp_files = []
+    
+    for doc in sorted_docs:
+        if doc.get('file_data'):
+            temp_path = f"/tmp/merge_{doc['id']}.pdf"
+            temp_files.append(temp_path)
+            
+            with open(temp_path, "wb") as f:
+                f.write(doc['file_data'])
+            
+            try:
+                merger.append(temp_path)
+            except Exception as e:
+                logging.warning(f"No se pudo agregar {doc['filename']}: {e}")
+    
+    output_path = f"/tmp/consolidated_{batch_id}.pdf"
+    merger.write(output_path)
+    merger.close()
+    
+    with open(output_path, "rb") as f:
+        pdf_data = f.read()
+    
+    # Limpiar archivos temporales
+    for temp_file in temp_files:
+        try:
+            os.remove(temp_file)
+        except:
+            pass
+    try:
+        os.remove(output_path)
+    except:
+        pass
+    
+    # Guardar nuevo PDF
+    pdf_filename = f"Documentos_Consolidados_{consecutive_number}.pdf"
+    
+    consolidated = ConsolidatedPDF(
+        batch_id=batch_id,
+        filename=pdf_filename,
+        created_by=user.id,
+        file_size=len(pdf_data)
+    )
+    
+    consolidated_dict = consolidated.model_dump()
+    consolidated_dict['created_at'] = consolidated_dict['created_at'].isoformat()
+    consolidated_dict['pdf_data'] = pdf_data
+    
+    await db.consolidated_pdfs.insert_one(consolidated_dict)
+    
+    # Actualizar batch
+    await db.batches.update_one(
+        {"id": batch_id},
+        {"$set": {
+            "pdf_generado_id": consolidated.id, 
+            "status": DocumentStatus.TERMINADO,
+            "needs_regeneration": False
+        }}
+    )
+    
+    await log_action(user, "REGENERATE_PDF", f"Regenerado PDF consolidado para lote {batch_id}")
+    
+    return {"success": True, "pdf_id": consolidated.id, "filename": pdf_filename}
+
 @api_router.delete("/documents/bulk")
 async def delete_documents_bulk(
     document_ids: List[str],
