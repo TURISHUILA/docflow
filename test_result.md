@@ -223,9 +223,22 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      CAMBIO CRÍTICO: Se cambió el modelo de IA de GPT-5.2 a Gemini 2.5 Flash porque FileContentWithMimeType solo funciona con Gemini.
-      La extracción de datos ahora funciona correctamente (probado con 11 documentos).
+      NUEVO CAMBIO: Se implementó el formato de nombre para los PDFs generados.
+      Formato: {NumeroComprobanteEgreso}_{NombreTercero}.pdf
+      Ejemplo: CE-19521_AVIANCA.pdf
+      
+      Cambios realizados en /app/backend/server.py:
+      1. Nueva función sanitize_filename() - sanitiza nombres para uso en archivos
+      2. Nueva función generate_pdf_filename_from_batch() - genera el nombre basado en el comprobante de egreso
+      3. Modificada función regenerate_pdf() - usa el nuevo nombre
+      4. Modificada función generate_consolidated_pdf() - usa el nuevo nombre
+      
       Necesito que pruebes:
-      1. Endpoint /api/documents/{id}/analyze - debe extraer valor, tercero, concepto
-      2. Endpoint /api/documents/suggest-batches - debe encontrar correlaciones
-      3. Endpoint /api/batches/{id}/generate-pdf - debe unir documentos originales
+      1. Crear un lote con documentos que incluyan un comprobante de egreso analizado
+      2. Generar el PDF consolidado
+      3. Verificar que el nombre del PDF tenga el formato correcto: {NumeroComprobanteEgreso}_{NombreTercero}.pdf
+      4. Probar regenerar el PDF y verificar que mantenga el formato correcto
+      
+      Credenciales de prueba:
+      - Email: admin@docflow.com
+      - Password: admin123
