@@ -570,6 +570,69 @@ const PDFs = () => {
                     ))}
                   </div>
 
+                  {/* Sección para agregar documento */}
+                  <div className="pt-4 border-t border-zinc-200">
+                    {!showAddForm ? (
+                      <Button
+                        onClick={handleAddDocClick}
+                        variant="outline"
+                        className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Upload size={16} />
+                          Agregar Documento al PDF
+                        </span>
+                      </Button>
+                    ) : (
+                      <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200 space-y-3">
+                        <p className="text-sm font-medium text-emerald-800">Agregar nuevo documento</p>
+                        
+                        <div>
+                          <label className="text-xs text-emerald-700 font-semibold block mb-1">
+                            Tipo de documento:
+                          </label>
+                          <select
+                            value={newDocType}
+                            onChange={(e) => setNewDocType(e.target.value)}
+                            className="w-full p-2 text-sm border border-emerald-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            <option value="comprobante_egreso">Comprobante de Egreso</option>
+                            <option value="cuenta_por_pagar">Cuenta Por Pagar</option>
+                            <option value="factura">Factura</option>
+                            <option value="soporte_pago">Soporte de Pago</option>
+                          </select>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => addFileInputRef.current?.click()}
+                            disabled={addingDoc}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          >
+                            {addingDoc ? (
+                              <span className="flex items-center gap-2">
+                                <Loader2 size={14} className="animate-spin" />
+                                Subiendo...
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2">
+                                <Upload size={14} />
+                                Seleccionar Archivo
+                              </span>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => setShowAddForm(false)}
+                            variant="outline"
+                            className="border-emerald-300"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Botón regenerar al final */}
                   {pdfDetails.documents?.length > 0 && (
                     <div className="pt-4 border-t border-zinc-200">
