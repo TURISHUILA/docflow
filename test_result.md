@@ -174,11 +174,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Une documentos originales en orden especificado"
+      - working: true
+        agent: "testing"
+        comment: "✅ PDF NAMING FORMAT VERIFIED: New format {NumeroComprobanteEgreso}_{NombreTercero}.pdf working correctly. Generated test PDF: CE-19569_AEROVIAS_DEL_CONTINENTE_AMERICANO_SA_AVIANCA.pdf. Fallback format also working for batches without valid comprobante_egreso. Both generate-pdf and regenerate-pdf endpoints maintain correct naming format. All 7 tests passed with 100% success rate."
 
 frontend:
   - task: "Lista de documentos con datos extraídos"
