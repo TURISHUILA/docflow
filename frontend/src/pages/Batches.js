@@ -254,55 +254,91 @@ const Batches = () => {
           <p className="text-zinc-500 mt-2">Agrupa documentos y genera PDFs consolidados</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="create-batch-button" className="bg-zinc-900 hover:bg-zinc-800">
-              <Plus size={18} className="mr-2" />
-              Nuevo Lote
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Crear Nuevo Lote</DialogTitle>
-              <DialogDescription>
-                Selecciona los documentos para crear un lote de procesamiento
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {documents.length === 0 ? (
-                <p className="text-center py-8 text-zinc-500">No hay documentos disponibles</p>
-              ) : (
-                documents.map(doc => (
-                  <div key={doc.id} className="flex items-center gap-3 p-3 border border-zinc-200 rounded-md hover:bg-zinc-50">
-                    <Checkbox
-                      checked={selectedDocs.includes(doc.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedDocs([...selectedDocs, doc.id]);
-                        } else {
-                          setSelectedDocs(selectedDocs.filter(id => id !== doc.id));
-                        }
-                      }}
-                    />
-                    <FileText size={18} className="text-zinc-400" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-zinc-900">{doc.filename}</p>
-                      <p className="text-xs text-zinc-500">{doc.tipo_documento}</p>
+        <div className="flex gap-3">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="create-batch-button" className="bg-zinc-900 hover:bg-zinc-800">
+                <Plus size={18} className="mr-2" />
+                Nuevo Lote
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Crear Nuevo Lote</DialogTitle>
+                <DialogDescription>
+                  Selecciona los documentos para crear un lote de procesamiento
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {documents.length === 0 ? (
+                  <p className="text-center py-8 text-zinc-500">No hay documentos disponibles</p>
+                ) : (
+                  documents.map(doc => (
+                    <div key={doc.id} className="flex items-center gap-3 p-3 border border-zinc-200 rounded-md hover:bg-zinc-50">
+                      <Checkbox
+                        checked={selectedDocs.includes(doc.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedDocs([...selectedDocs, doc.id]);
+                          } else {
+                            setSelectedDocs(selectedDocs.filter(id => id !== doc.id));
+                          }
+                        }}
+                      />
+                      <FileText size={18} className="text-zinc-400" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-zinc-900">{doc.filename}</p>
+                        <p className="text-xs text-zinc-500">{doc.tipo_documento}</p>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
+              <Button
+                onClick={createBatch}
+                disabled={creating || selectedDocs.length === 0}
+                className="w-full bg-zinc-900 hover:bg-zinc-800"
+              >
+                {creating ? 'Creando...' : `Crear Lote (${selectedDocs.length} documentos)`}
+              </Button>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Botón RE-ANALIZAR prominente */}
+      <Card className="border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <RefreshCw size={24} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-indigo-900">Re-analizar y Correlacionar</h3>
+                <p className="text-sm text-indigo-700 mt-1">
+                  {pendingCount > 0 
+                    ? `Hay ${pendingCount} documentos pendientes. ` 
+                    : ''}
+                  La IA analizará documentos nuevos y buscará correlaciones entre todas las carpetas.
+                </p>
+              </div>
             </div>
             <Button
-              onClick={createBatch}
-              disabled={creating || selectedDocs.length === 0}
-              className="w-full bg-zinc-900 hover:bg-zinc-800"
+              onClick={reanalyzeAll}
+              disabled={reanalyzing}
+              size="lg"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-10 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
             >
-              {creating ? 'Creando...' : `Crear Lote (${selectedDocs.length} documentos)`}
+              {reanalyzing ? (
+                <><Loader2 size={22} className="animate-spin mr-3" />RE-ANALIZANDO...</>
+              ) : (
+                <><RefreshCw size={22} className="mr-3" />RE-ANALIZAR</>
+              )}
             </Button>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Sugerencias de IA */}
       {(suggestions.length > 0 || loadingSuggestions) && (
