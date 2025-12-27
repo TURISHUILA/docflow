@@ -233,38 +233,40 @@ const Documents = () => {
           <h1 className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">Documentos</h1>
           <p className="text-zinc-500 mt-2">
             {totalDocs} documentos en total
-            {pendingCount > 0 && <span className="text-amber-600 font-medium"> • {pendingCount} pendientes de análisis</span>}
+            {pendingValidation > 0 && <span className="text-rose-600 font-medium"> • {pendingValidation} pendientes de validar</span>}
+            {validatedCount > 0 && <span className="text-emerald-600 font-medium"> • {validatedCount} validados</span>}
+            {analyzedCount > 0 && <span className="text-indigo-600 font-medium"> • {analyzedCount} analizados</span>}
           </p>
         </div>
       </div>
 
-      {/* Botón ANALIZAR prominente */}
-      {pendingCount > 0 && (
-        <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
+      {/* Botón ANALIZAR CON IA - Solo visible cuando todo está validado */}
+      {allValidated && (
+        <Card className="border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Search size={24} className="text-white" />
+                <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Sparkles size={24} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-blue-900">Análisis con IA</h3>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Hay <strong>{pendingCount} documentos</strong> pendientes de análisis. 
-                    La IA extraerá tercero, valor, fecha y correlacionará los documentos entre carpetas.
+                  <h3 className="text-lg font-bold text-indigo-900">Analizar con IA y Correlacionar</h3>
+                  <p className="text-sm text-indigo-700 mt-1">
+                    Todos los documentos están validados. La IA extraerá tercero, valor, fecha y 
+                    correlacionará los documentos entre las 4 carpetas.
                   </p>
                 </div>
               </div>
               <Button
-                onClick={processAllLoaded}
-                disabled={processingAll}
+                onClick={analyzeAllWithAI}
+                disabled={analyzingAll}
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-10 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
               >
-                {processingAll ? (
+                {analyzingAll ? (
                   <><Loader2 size={22} className="animate-spin mr-3" />ANALIZANDO...</>
                 ) : (
-                  <><Search size={22} className="mr-3" />ANALIZAR TODOS</>
+                  <><Sparkles size={22} className="mr-3" />ANALIZAR CON IA</>
                 )}
               </Button>
             </div>
@@ -272,8 +274,23 @@ const Documents = () => {
         </Card>
       )}
 
+      {/* Mensaje cuando hay documentos pendientes de validar */}
+      {pendingValidation > 0 && (
+        <Card className="border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={24} className="text-amber-600" />
+              <p className="text-amber-800">
+                <strong>{pendingValidation} documentos</strong> pendientes de validar. 
+                Usa el botón <strong>"Validar Carpeta"</strong> en cada carpeta antes de analizar con IA.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Mensaje cuando todo está analizado */}
-      {pendingCount === 0 && totalDocs > 0 && (
+      {analyzedCount > 0 && pendingValidation === 0 && validatedCount === 0 && (
         <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -288,10 +305,14 @@ const Documents = () => {
 
       {/* Carpetas por tipo de documento */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {Object.entries(folderConfig).map(([tipo, config]) => {
+        {Object.entries(folderConfig)
+          .sort((a, b) => a[1].order - b[1].order)
+          .map(([tipo, config]) => {
           const docs = groupedDocs[tipo] || [];
           const Icon = config.icon;
           const pendingInFolder = docs.filter(d => d.status === 'cargado').length;
+          const validatedInFolder = docs.filter(d => d.status === 'validado').length;
+          const analyzedInFolder = docs.filter(d => ['analizado', 'terminado'].includes(d.status)).length;
           
           return (
             <Card key={tipo} className={`${config.borderColor} border-2`}>
@@ -308,12 +329,36 @@ const Documents = () => {
                       {docs.length} docs
                     </Badge>
                     {pendingInFolder > 0 && (
-                      <Badge className="bg-amber-100 text-amber-700 border-amber-300">
-                        {pendingInFolder} pendientes
+                      <Badge className="bg-rose-100 text-rose-700 border-rose-300">
+                        🔴 {pendingInFolder}
+                      </Badge>
+                    )}
+                    {validatedInFolder > 0 && (
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300">
+                        🟢 {validatedInFolder}
+                      </Badge>
+                    )}
+                    {analyzedInFolder > 0 && (
+                      <Badge className="bg-indigo-100 text-indigo-700 border-indigo-300">
+                        🔵 {analyzedInFolder}
                       </Badge>
                     )}
                   </div>
                 </div>
+                {/* Botón Validar Carpeta */}
+                {pendingInFolder > 0 && (
+                  <Button
+                    onClick={() => validateFolder(tipo)}
+                    disabled={validatingFolder[tipo]}
+                    className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    {validatingFolder[tipo] ? (
+                      <><Loader2 size={16} className="animate-spin mr-2" />Validando...</>
+                    ) : (
+                      <><ShieldCheck size={16} className="mr-2" />Validar Carpeta ({pendingInFolder})</>
+                    )}
+                  </Button>
+                )}
               </CardHeader>
               
               <CardContent className="p-0">
