@@ -31,6 +31,8 @@ const Batches = () => {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [creatingSuggestion, setCreatingSuggestion] = useState({});
   const [deleting, setDeleting] = useState({});
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     fetchBatches();
