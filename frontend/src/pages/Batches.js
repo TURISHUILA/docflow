@@ -90,12 +90,52 @@ const Batches = () => {
 
   const fetchDocuments = async () => {
     try {
-      const response = await axios.get(`${API}/documents/list?status=en_proceso`, {
+      const response = await axios.get(`${API}/documents/list`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setDocuments(response.data.documents.filter(doc => !doc.batch_id));
+      const allDocs = response.data.documents;
+      setDocuments(allDocs.filter(doc => !doc.batch_id && doc.status === 'en_proceso'));
+      setPendingCount(allDocs.filter(doc => doc.status === 'cargado').length);
     } catch (error) {
       console.error('Error fetching documents:', error);
+    }
+  };
+
+  const reanalyzeAll = async () => {
+    setReanalyzing(true);
+    try {
+      // Paso 1: Obtener documentos pendientes
+      const docsResponse = await axios.get(`${API}/documents/list`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const pendingDocs = docsResponse.data.documents.filter(doc => doc.status === 'cargado');
+      
+      if (pendingDocs.length > 0) {
+        toast.info(`Analizando ${pendingDocs.length} documentos pendientes...`);
+        
+        // Analizar documentos pendientes
+        for (const doc of pendingDocs) {
+          try {
+            await axios.post(`${API}/documents/${doc.id}/analyze`, {}, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (error) {
+            console.error(`Error analyzing ${doc.filename}:`, error);
+          }
+        }
+      }
+      
+      // Paso 2: Actualizar correlaciones
+      toast.info('Buscando nuevas correlaciones...');
+      await fetchSuggestions();
+      await fetchDocuments();
+      
+      toast.success('Re-análisis completado. Las sugerencias han sido actualizadas.');
+    } catch (error) {
+      toast.error('Error durante el re-análisis');
+      console.error('Reanalysis error:', error);
+    } finally {
+      setReanalyzing(false);
     }
   };
 
