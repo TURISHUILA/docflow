@@ -396,11 +396,12 @@ const Documents = () => {
       </Dialog>
 
       {/* Info */}
-      <Card className="border-zinc-200 bg-zinc-50">
+      <Card className="border-blue-200 bg-blue-50">
         <CardContent className="p-4">
-          <p className="text-sm text-zinc-600">
-            <strong>Tip:</strong> Al hacer clic en "Validar", el sistema automáticamente detecta PDFs con múltiples páginas 
-            y los divide en documentos individuales. Cada página se analiza por separado para extraer tercero, valor y demás información.
+          <p className="text-sm text-blue-700">
+            <strong>Tip:</strong> Sube todos los archivos a las 4 carpetas desde "Cargar Documentos", luego presiona el botón 
+            <strong> ANALIZAR </strong> para procesar todos los documentos pendientes con IA. El sistema detectará PDFs 
+            multipágina y los dividirá automáticamente.
           </p>
         </CardContent>
       </Card>
