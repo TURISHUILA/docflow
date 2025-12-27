@@ -91,25 +91,69 @@ const Documents = () => {
     }
   };
 
-  const analyzeDocument = async (docId, isRevalidation = false) => {
-    setAnalyzing(prev => ({ ...prev, [docId]: true }));
+  // Validar un documento individual
+  const validateDocument = async (docId) => {
+    setValidating(prev => ({ ...prev, [docId]: true }));
     try {
-      const response = await axios.post(`${API}/documents/${docId}/analyze`, {}, {
+      await axios.post(`${API}/documents/${docId}/validate`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Documento validado');
+      fetchDocuments();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al validar documento');
+    } finally {
+      setValidating(prev => ({ ...prev, [docId]: false }));
+    }
+  };
+
+  // Validar todos los documentos de una carpeta
+  const validateFolder = async (tipoDocumento) => {
+    const folderLabel = folderConfig[tipoDocumento]?.label || tipoDocumento;
+    setValidatingFolder(prev => ({ ...prev, [tipoDocumento]: true }));
+    
+    try {
+      toast.info(`Validando carpeta: ${folderLabel}...`);
+      const response = await axios.post(`${API}/documents/validate-folder/${tipoDocumento}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      if (response.data.was_split) {
-        toast.success(`PDF dividido: ${response.data.documents_created} documentos extraídos de ${response.data.total_pages} páginas`);
-      } else if (response.data.analysis?.error) {
-        toast.error(`Error: ${response.data.analysis.error}`);
+      if (response.data.errors > 0) {
+        toast.warning(`${response.data.validated} validados, ${response.data.errors} con errores`);
+      } else if (response.data.validated === 0) {
+        toast.info('No hay documentos pendientes de validar en esta carpeta');
       } else {
-        toast.success(isRevalidation ? 'Documento re-validado' : 'Documento validado');
+        toast.success(`${response.data.validated} documentos validados en ${folderLabel}`);
       }
       fetchDocuments();
     } catch (error) {
-      toast.error('Error al validar documento');
+      toast.error('Error al validar carpeta');
     } finally {
-      setAnalyzing(prev => ({ ...prev, [docId]: false }));
+      setValidatingFolder(prev => ({ ...prev, [tipoDocumento]: false }));
+    }
+  };
+
+  // Analizar todos los documentos validados con IA
+  const analyzeAllWithAI = async () => {
+    setAnalyzingAll(true);
+    try {
+      toast.info('Iniciando análisis con IA y correlación...');
+      const response = await axios.post(`${API}/documents/analyze-all`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!response.data.success && response.data.pending_validation) {
+        toast.error(response.data.message);
+      } else if (response.data.analyzed === 0) {
+        toast.info('No hay documentos pendientes de analizar');
+      } else {
+        toast.success(`${response.data.analyzed} documentos analizados. Ve a Lotes para ver las correlaciones.`);
+      }
+      fetchDocuments();
+    } catch (error) {
+      toast.error('Error al analizar documentos');
+    } finally {
+      setAnalyzingAll(false);
     }
   };
 
@@ -158,34 +202,6 @@ const Documents = () => {
     setDocUrl(null);
   };
 
-  const processAllLoaded = async () => {
-    const loadedDocs = documents.filter(doc => doc.status === 'cargado' && !doc.parent_document_id);
-    
-    if (loadedDocs.length === 0) {
-      toast.error('No hay documentos pendientes para analizar');
-      return;
-    }
-
-    setProcessingAll(true);
-    toast.info(`Analizando ${loadedDocs.length} documentos con IA...`);
-
-    let successCount = 0;
-    for (const doc of loadedDocs) {
-      try {
-        await axios.post(`${API}/documents/${doc.id}/analyze`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        successCount++;
-      } catch (error) {
-        // continuar con el siguiente
-      }
-    }
-
-    setProcessingAll(false);
-    toast.success(`${successCount} documentos analizados exitosamente`);
-    fetchDocuments();
-  };
-
   // Agrupar documentos por tipo
   const groupedDocs = {
     comprobante_egreso: documents.filter(d => d.tipo_documento === 'comprobante_egreso' && d.status !== 'dividido'),
@@ -194,8 +210,12 @@ const Documents = () => {
     soporte_pago: documents.filter(d => d.tipo_documento === 'soporte_pago' && d.status !== 'dividido'),
   };
 
-  const pendingCount = documents.filter(doc => doc.status === 'cargado').length;
+  // Contadores
+  const pendingValidation = documents.filter(doc => doc.status === 'cargado').length;
+  const validatedCount = documents.filter(doc => doc.status === 'validado').length;
+  const analyzedCount = documents.filter(doc => ['analizado', 'terminado'].includes(doc.status)).length;
   const totalDocs = documents.filter(d => d.status !== 'dividido').length;
+  const allValidated = pendingValidation === 0 && validatedCount > 0;
 
   if (loading) {
     return (
