@@ -32,6 +32,7 @@ const PDFs = () => {
   const [addingDoc, setAddingDoc] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDocType, setNewDocType] = useState('comprobante_egreso');
+  const [deletingPdf, setDeletingPdf] = useState({});
   const fileInputRef = useRef(null);
   const addFileInputRef = useRef(null);
 
