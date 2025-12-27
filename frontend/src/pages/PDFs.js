@@ -387,6 +387,18 @@ const PDFs = () => {
                       <Download size={18} className="mr-2" />
                       Descargar
                     </Button>
+                    <Button
+                      onClick={() => deletePdf(pdf.id, pdf.filename)}
+                      disabled={deletingPdf[pdf.id]}
+                      variant="outline"
+                      className="border-rose-300 text-rose-600 hover:bg-rose-50"
+                    >
+                      {deletingPdf[pdf.id] ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={18} />
+                      )}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
