@@ -831,12 +831,32 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
 
 @api_router.post("/documents/analyze-all")
 async def analyze_all_documents(authorization: str = Header(None)):
-    """Analiza todos los documentos que no han sido analizados aún (status=cargado)"""
+    """Analiza todos los documentos VALIDADOS con IA y busca correlaciones"""
     user = await get_current_user(authorization)
     
-    # Obtener documentos sin analizar
+    # Verificar que todas las carpetas tengan sus documentos validados
+    folder_order = [
+        DocumentType.COMPROBANTE_EGRESO,
+        DocumentType.CUENTA_POR_PAGAR,
+        DocumentType.FACTURA,
+        DocumentType.SOPORTE_PAGO
+    ]
+    
+    # Contar documentos pendientes de validar
+    pending_validation = await db.documents.count_documents({
+        "status": DocumentStatus.CARGADO
+    })
+    
+    if pending_validation > 0:
+        return {
+            "success": False,
+            "message": f"Hay {pending_validation} documentos pendientes de validar. Valida todas las carpetas primero.",
+            "pending_validation": pending_validation
+        }
+    
+    # Obtener documentos validados (listos para analizar)
     docs = await db.documents.find(
-        {"status": DocumentStatus.CARGADO},
+        {"status": DocumentStatus.VALIDADO},
         {"_id": 0}
     ).to_list(1000)
     
