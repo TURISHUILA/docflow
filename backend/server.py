@@ -1498,6 +1498,93 @@ async def delete_documents_by_date(date: str, authorization: str = Header(None))
     
     return {"success": True, "deleted_count": result.deleted_count, "date": date}
 
+@api_router.delete("/documents/delete-all")
+async def delete_all_documents(authorization: str = Header(None)):
+    """Elimina todos los documentos, lotes y PDFs consolidados (solo admin)"""
+    user = await get_current_user(authorization)
+    
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden eliminar todos los documentos")
+    
+    # Eliminar PDFs consolidados
+    pdf_result = await db.consolidated_pdfs.delete_many({})
+    
+    # Eliminar lotes
+    batch_result = await db.batches.delete_many({})
+    
+    # Eliminar documentos
+    doc_result = await db.documents.delete_many({})
+    
+    # Limpiar GridFS
+    await db.fs.files.delete_many({})
+    await db.fs.chunks.delete_many({})
+    
+    await log_action(user, "DELETE_ALL", f"Eliminados {doc_result.deleted_count} documentos, {batch_result.deleted_count} lotes, {pdf_result.deleted_count} PDFs")
+    
+    return {
+        "success": True, 
+        "deleted_documents": doc_result.deleted_count,
+        "deleted_batches": batch_result.deleted_count,
+        "deleted_pdfs": pdf_result.deleted_count
+    }
+
+@api_router.post("/documents/reanalyze-group")
+async def reanalyze_group(document_ids: List[str], authorization: str = Header(None)):
+    """Re-analiza un grupo específico de documentos"""
+    user = await get_current_user(authorization)
+    
+    results = {"success": 0, "failed": 0, "errors": []}
+    
+    for doc_id in document_ids:
+        try:
+            doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
+            if not doc:
+                results["failed"] += 1
+                results["errors"].append(f"Documento {doc_id} no encontrado")
+                continue
+            
+            # Guardar temporalmente para análisis
+            temp_path = f"/tmp/{doc_id}_{doc['filename']}"
+            with open(temp_path, "wb") as f:
+                f.write(doc['file_data'])
+            
+            # Re-analizar con IA
+            analysis = await analyze_document_with_gpt(temp_path, doc['mime_type'])
+            
+            update_data = {
+                "status": DocumentStatus.EN_PROCESO,
+                "analisis_completo": analysis
+            }
+            
+            if analysis.get("valor") is not None:
+                update_data["valor"] = analysis["valor"]
+            if analysis.get("fecha"):
+                update_data["fecha"] = analysis["fecha"]
+            if analysis.get("concepto"):
+                update_data["concepto"] = analysis["concepto"]
+            if analysis.get("tercero"):
+                update_data["tercero"] = analysis["tercero"]
+            if analysis.get("nit"):
+                update_data["nit"] = analysis["nit"]
+            if analysis.get("numero_documento"):
+                update_data["numero_documento"] = analysis["numero_documento"]
+            
+            await db.documents.update_one({"id": doc_id}, {"$set": update_data})
+            
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+            
+            results["success"] += 1
+        except Exception as e:
+            results["failed"] += 1
+            results["errors"].append(f"Error en {doc_id}: {str(e)}")
+    
+    await log_action(user, "REANALYZE_GROUP", f"Re-analizados {results['success']} documentos")
+    
+    return results
+
 @api_router.post("/batches/{batch_id}/generate-pdf")
 async def generate_consolidated_pdf(batch_id: str, authorization: str = Header(None)):
     user = await get_current_user(authorization)
