@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { FolderArchive, Download, Plus, FileText, Sparkles, Check, X, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import { FolderArchive, Download, Plus, FileText, Sparkles, Check, X, Loader2, Trash2, RefreshCw, Rocket } from 'lucide-react';
 
 const statusConfig = {
   cargado: { label: 'Cargado', color: 'text-sky-600 bg-sky-50 border-sky-200' },
