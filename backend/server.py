@@ -1528,36 +1528,6 @@ async def delete_documents_by_date(date: str, authorization: str = Header(None))
     
     return {"success": True, "deleted_count": result.deleted_count, "date": date}
 
-@api_router.delete("/documents/delete-all")
-async def delete_all_documents(authorization: str = Header(None)):
-    """Elimina todos los documentos, lotes y PDFs consolidados (solo admin)"""
-    user = await get_current_user(authorization)
-    
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Solo administradores pueden eliminar todos los documentos")
-    
-    # Eliminar PDFs consolidados
-    pdf_result = await db.consolidated_pdfs.delete_many({})
-    
-    # Eliminar lotes
-    batch_result = await db.batches.delete_many({})
-    
-    # Eliminar documentos
-    doc_result = await db.documents.delete_many({})
-    
-    # Limpiar GridFS
-    await db.fs.files.delete_many({})
-    await db.fs.chunks.delete_many({})
-    
-    await log_action(user, "DELETE_ALL", f"Eliminados {doc_result.deleted_count} documentos, {batch_result.deleted_count} lotes, {pdf_result.deleted_count} PDFs")
-    
-    return {
-        "success": True, 
-        "deleted_documents": doc_result.deleted_count,
-        "deleted_batches": batch_result.deleted_count,
-        "deleted_pdfs": pdf_result.deleted_count
-    }
-
 @api_router.post("/documents/reanalyze-group")
 async def reanalyze_group(document_ids: List[str], authorization: str = Header(None)):
     """Re-analiza un grupo específico de documentos"""
