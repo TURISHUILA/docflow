@@ -421,12 +421,11 @@ const Documents = () => {
       </Dialog>
 
       {/* Info */}
-      <Card className="border-blue-200 bg-blue-50">
+      <Card className="border-zinc-200 bg-zinc-50">
         <CardContent className="p-4">
-          <p className="text-sm text-blue-700">
-            <strong>Tip:</strong> Sube todos los archivos a las 4 carpetas desde "Cargar Documentos", luego presiona el botón 
-            <strong> ANALIZAR </strong> para procesar todos los documentos pendientes con IA. El sistema detectará PDFs 
-            multipágina y los dividirá automáticamente.
+          <p className="text-sm text-zinc-600">
+            <strong>Flujo de trabajo:</strong> 1) Sube documentos a las 4 carpetas → 2) Presiona <strong>ANALIZAR TODOS</strong> → 
+            3) Ve a <strong>Lotes</strong> para ver las sugerencias de correlación → 4) Aprueba y genera el PDF consolidado.
           </p>
         </CardContent>
       </Card>
