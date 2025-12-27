@@ -152,12 +152,12 @@ const Documents = () => {
     const loadedDocs = documents.filter(doc => doc.status === 'cargado' && !doc.parent_document_id);
     
     if (loadedDocs.length === 0) {
-      toast.error('No hay documentos pendientes para validar');
+      toast.error('No hay documentos pendientes para analizar');
       return;
     }
 
     setProcessingAll(true);
-    toast.info(`Validando ${loadedDocs.length} documentos con IA...`);
+    toast.info(`Analizando ${loadedDocs.length} documentos con IA...`);
 
     let successCount = 0;
     for (const doc of loadedDocs) {
@@ -172,7 +172,7 @@ const Documents = () => {
     }
 
     setProcessingAll(false);
-    toast.success(`${successCount} documentos procesados`);
+    toast.success(`${successCount} documentos analizados exitosamente`);
     fetchDocuments();
   };
 
