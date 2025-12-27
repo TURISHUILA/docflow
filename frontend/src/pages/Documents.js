@@ -395,7 +395,7 @@ const Documents = () => {
                           
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <Badge variant="outline" className={`text-xs ${statusConfig[doc.status]?.color || ''}`}>
-                              {statusConfig[doc.status]?.label || doc.status}
+                              {statusConfig[doc.status]?.icon} {statusConfig[doc.status]?.label || doc.status}
                             </Badge>
                             
                             {/* Ver documento original */}
