@@ -92,10 +92,13 @@ class DocumentType:
     SOPORTE_PAGO = "soporte_pago"
 
 class DocumentStatus:
-    CARGADO = "cargado"  # blue
-    EN_PROCESO = "en_proceso"  # yellow
-    TERMINADO = "terminado"  # green
-    REVISION = "revision"  # red
+    CARGADO = "cargado"           # Recién subido (🔴)
+    VALIDANDO = "validando"       # En proceso de validación (🟡)
+    VALIDADO = "validado"         # Validado, listo para analizar (🟢)
+    EN_PROCESO = "en_proceso"     # Analizando con IA
+    ANALIZADO = "analizado"       # IA extrajo datos (🔵)
+    TERMINADO = "terminado"       # En lote con PDF generado
+    REVISION = "revision"         # Requiere revisión
 
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
