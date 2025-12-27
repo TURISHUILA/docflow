@@ -122,12 +122,25 @@ const Upload = () => {
         }
       });
 
-      toast.success(`¡${response.data.uploaded} documento(s) cargado(s) exitosamente!`);
+      // Mostrar mensaje según resultados
+      const { uploaded, duplicates, duplicate_files } = response.data;
+      
+      if (duplicates > 0 && uploaded > 0) {
+        toast.success(`¡${uploaded} documento(s) cargado(s)!`);
+        toast.warning(`${duplicates} archivo(s) duplicado(s) omitido(s): ${duplicate_files.slice(0, 3).join(', ')}${duplicates > 3 ? '...' : ''}`);
+      } else if (duplicates > 0 && uploaded === 0) {
+        toast.error(`Todos los archivos ya existen en esta carpeta (${duplicates} duplicados)`);
+      } else {
+        toast.success(`¡${uploaded} documento(s) cargado(s) exitosamente!`);
+      }
+      
       setFiles([]);
       setUploadProgress(0);
       
-      // Navigate to documents page after 1 second
-      setTimeout(() => navigate('/documents'), 1000);
+      // Navigate to documents page after 1 second if something was uploaded
+      if (uploaded > 0) {
+        setTimeout(() => navigate('/documents'), 1000);
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al cargar documentos');
     } finally {
