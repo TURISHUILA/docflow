@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { FileText, Search, RefreshCw, Eye, CheckCircle, AlertTriangle, Loader2, Trash2, Layers, FolderOpen, Receipt, FileCheck, CreditCard } from 'lucide-react';
+import { FileText, Search, RefreshCw, Eye, CheckCircle, AlertTriangle, Loader2, Trash2, FolderOpen, Receipt, FileCheck, CreditCard, ShieldCheck, Sparkles } from 'lucide-react';
 
 // Configuración de colores por tipo de documento
 const folderConfig = {
@@ -18,6 +18,7 @@ const folderConfig = {
     borderColor: 'border-blue-200',
     textColor: 'text-blue-700',
     icon: FileCheck,
+    order: 1,
   },
   cuenta_por_pagar: {
     label: 'Cuenta Por Pagar',
@@ -26,6 +27,7 @@ const folderConfig = {
     borderColor: 'border-amber-200',
     textColor: 'text-amber-700',
     icon: Receipt,
+    order: 2,
   },
   factura: {
     label: 'Factura',
@@ -34,6 +36,7 @@ const folderConfig = {
     borderColor: 'border-emerald-200',
     textColor: 'text-emerald-700',
     icon: FileText,
+    order: 3,
   },
   soporte_pago: {
     label: 'Soporte de Pago',
@@ -42,22 +45,29 @@ const folderConfig = {
     borderColor: 'border-purple-200',
     textColor: 'text-purple-700',
     icon: CreditCard,
+    order: 4,
   },
 };
 
+// Estados con colores mejorados
 const statusConfig = {
-  cargado: { label: 'Pendiente', color: 'text-sky-600 bg-sky-50 border-sky-200' },
-  en_proceso: { label: 'Validado', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-  terminado: { label: 'Terminado', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-  dividido: { label: 'Dividido', color: 'text-purple-600 bg-purple-50 border-purple-200' },
+  cargado: { label: 'Pendiente', color: 'text-rose-600 bg-rose-50 border-rose-300', icon: '🔴' },
+  validando: { label: 'Validando...', color: 'text-amber-600 bg-amber-50 border-amber-300', icon: '🟡' },
+  validado: { label: 'Validado', color: 'text-emerald-600 bg-emerald-50 border-emerald-300', icon: '🟢' },
+  en_proceso: { label: 'Analizando', color: 'text-blue-600 bg-blue-50 border-blue-300', icon: '🔵' },
+  analizado: { label: 'Analizado', color: 'text-indigo-600 bg-indigo-50 border-indigo-300', icon: '🔵' },
+  terminado: { label: 'En Lote', color: 'text-violet-600 bg-violet-50 border-violet-300', icon: '✅' },
+  dividido: { label: 'Dividido', color: 'text-purple-600 bg-purple-50 border-purple-300', icon: '📄' },
+  revision: { label: 'Revisión', color: 'text-red-600 bg-red-50 border-red-300', icon: '⚠️' },
 };
 
 const Documents = () => {
   const { token, API } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [analyzing, setAnalyzing] = useState({});
-  const [processingAll, setProcessingAll] = useState(false);
+  const [validating, setValidating] = useState({});
+  const [validatingFolder, setValidatingFolder] = useState({});
+  const [analyzingAll, setAnalyzingAll] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [deleting, setDeleting] = useState({});
   const [viewingDoc, setViewingDoc] = useState(null);
