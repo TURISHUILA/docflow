@@ -74,6 +74,23 @@ const PDFs = () => {
     }
   };
 
+  const deletePdf = async (pdfId, filename) => {
+    if (!window.confirm(`¿Eliminar el PDF consolidado "${filename}" y su lote asociado?`)) return;
+    
+    setDeletingPdf(prev => ({ ...prev, [pdfId]: true }));
+    try {
+      await axios.delete(`${API}/pdfs/${pdfId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('PDF consolidado eliminado');
+      fetchPDFs();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al eliminar PDF');
+    } finally {
+      setDeletingPdf(prev => ({ ...prev, [pdfId]: false }));
+    }
+  };
+
   const fetchPdfDetails = async (pdfId) => {
     setLoadingDetails(true);
     try {
