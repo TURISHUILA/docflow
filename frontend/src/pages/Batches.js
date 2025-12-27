@@ -33,6 +33,7 @@ const Batches = () => {
   const [deleting, setDeleting] = useState({});
   const [reanalyzing, setReanalyzing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [reanalyzingGroup, setReanalyzingGroup] = useState({});
 
   useEffect(() => {
     fetchBatches();
