@@ -245,3 +245,27 @@ agent_communication:
       Credenciales de prueba:
       - Email: admin@docflow.com
       - Password: admin123
+  - agent: "testing"
+    message: |
+      ✅ TESTING COMPLETED - PDF NAMING FORMAT VERIFICATION
+      
+      RESULTS SUMMARY:
+      - ✅ Login with admin credentials: PASSED
+      - ✅ Document listing: Found 257 documents, 141 with analysis data
+      - ✅ Comprobante verification: 34/75 comprobantes have complete data (numero_documento + tercero)
+      - ✅ Batch suggestions: Found 37 AI suggestions for document correlation
+      - ✅ Batch creation: Successfully created batch with comprobante_egreso
+      - ✅ PDF generation: Generated PDF with correct format
+      - ✅ Filename verification: CE-19569_AEROVIAS_DEL_CONTINENTE_AMERICANO_SA_AVIANCA.pdf
+      - ✅ PDF regeneration: Maintains correct format after regeneration
+      
+      CRITICAL FINDINGS:
+      ✅ NEW PDF NAMING FORMAT IS WORKING CORRECTLY
+      - Format: {NumeroComprobanteEgreso}_{NombreTercero}.pdf
+      - Example generated: CE-19569_AEROVIAS_DEL_CONTINENTE_AMERICANO_SA_AVIANCA.pdf
+      - Fallback format working: Documentos_Consolidados_YYYY-XXXX.pdf (when no valid comprobante)
+      - Both generate-pdf and regenerate-pdf endpoints working correctly
+      - sanitize_filename() function properly cleaning special characters
+      
+      ALL TESTS PASSED: 7/7 (100% success rate)
+      No backend errors detected in logs.
