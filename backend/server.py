@@ -596,6 +596,97 @@ async def view_document(doc_id: str, authorization: str = Header(None)):
         }
     )
 
+@api_router.post("/documents/{doc_id}/validate")
+async def validate_document(doc_id: str, authorization: str = Header(None)):
+    """Valida que un documento se haya subido correctamente y está listo para analizar"""
+    user = await get_current_user(authorization)
+    
+    doc = await db.documents.find_one({"id": doc_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    
+    # Marcar como validando
+    await db.documents.update_one({"id": doc_id}, {"$set": {"status": DocumentStatus.VALIDANDO}})
+    
+    try:
+        file_data = doc.get('file_data')
+        if not file_data or len(file_data) == 0:
+            raise HTTPException(status_code=400, detail="Archivo vacío o corrupto")
+        
+        filename = doc.get('filename', '').lower()
+        mime_type = doc.get('mime_type', '').lower()
+        
+        # Validar según tipo de archivo
+        if filename.endswith('.pdf') or 'pdf' in mime_type:
+            # Validar PDF
+            try:
+                reader = PdfReader(io.BytesIO(file_data))
+                num_pages = len(reader.pages)
+                if num_pages == 0:
+                    raise ValueError("PDF sin páginas")
+            except Exception as e:
+                await db.documents.update_one({"id": doc_id}, {"$set": {"status": DocumentStatus.REVISION}})
+                raise HTTPException(status_code=400, detail=f"PDF inválido: {str(e)}")
+        
+        elif filename.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) or 'image' in mime_type:
+            # Validar imagen
+            try:
+                from PIL import Image
+                img = Image.open(io.BytesIO(file_data))
+                img.verify()
+            except Exception as e:
+                await db.documents.update_one({"id": doc_id}, {"$set": {"status": DocumentStatus.REVISION}})
+                raise HTTPException(status_code=400, detail=f"Imagen inválida: {str(e)}")
+        
+        # Si pasó las validaciones, marcar como validado
+        await db.documents.update_one({"id": doc_id}, {"$set": {"status": DocumentStatus.VALIDADO}})
+        
+        await log_action(user, "VALIDATE_DOCUMENT", f"Documento {doc['filename']} validado")
+        
+        return {"success": True, "status": "validado", "message": "Documento validado correctamente"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.documents.update_one({"id": doc_id}, {"$set": {"status": DocumentStatus.REVISION}})
+        raise HTTPException(status_code=400, detail=f"Error al validar: {str(e)}")
+
+@api_router.post("/documents/validate-folder/{tipo_documento}")
+async def validate_folder(tipo_documento: str, authorization: str = Header(None)):
+    """Valida todos los documentos de una carpeta/tipo"""
+    user = await get_current_user(authorization)
+    
+    # Obtener documentos no validados de esta carpeta
+    docs = await db.documents.find({
+        "tipo_documento": tipo_documento,
+        "status": DocumentStatus.CARGADO
+    }, {"_id": 0, "id": 1, "filename": 1}).to_list(1000)
+    
+    if not docs:
+        return {"success": True, "validated": 0, "message": "No hay documentos pendientes de validar"}
+    
+    validated = 0
+    errors = []
+    
+    for doc in docs:
+        try:
+            # Llamar a la validación individual
+            await validate_document(doc['id'], authorization)
+            validated += 1
+        except HTTPException as e:
+            errors.append({"filename": doc['filename'], "error": e.detail})
+        except Exception as e:
+            errors.append({"filename": doc['filename'], "error": str(e)})
+    
+    await log_action(user, "VALIDATE_FOLDER", f"Validados {validated} documentos en {tipo_documento}")
+    
+    return {
+        "success": True,
+        "validated": validated,
+        "errors": len(errors),
+        "error_details": errors[:5]  # Mostrar máximo 5 errores
+    }
+
 @api_router.post("/documents/{doc_id}/analyze")
 async def analyze_document(doc_id: str, authorization: str = Header(None)):
     """
