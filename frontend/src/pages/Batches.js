@@ -444,6 +444,19 @@ const Batches = () => {
                         )}
                       </Button>
                       <Button
+                        onClick={() => reanalyzeGroup(suggestion, index)}
+                        disabled={reanalyzingGroup[index]}
+                        variant="outline"
+                        className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                        title="Re-analizar documentos de este grupo"
+                      >
+                        {reanalyzingGroup[index] ? (
+                          <Loader2 className="animate-spin" size={16} />
+                        ) : (
+                          <RefreshCw size={16} />
+                        )}
+                      </Button>
+                      <Button
                         onClick={() => dismissSuggestion(index)}
                         variant="outline"
                         className="border-zinc-300"
