@@ -495,12 +495,12 @@ const Documents = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Info */}
+      {/* Info del flujo */}
       <Card className="border-zinc-200 bg-zinc-50">
         <CardContent className="p-4">
           <p className="text-sm text-zinc-600">
-            <strong>Flujo de trabajo:</strong> 1) Sube documentos a las 4 carpetas → 2) Presiona <strong>ANALIZAR TODOS</strong> → 
-            3) Ve a <strong>Lotes</strong> para ver las sugerencias de correlación → 4) Aprueba y genera el PDF consolidado.
+            <strong>Flujo:</strong> 1) Sube documentos → 2) <strong>Valida cada carpeta</strong> (🔴→🟢) → 
+            3) <strong>Analizar con IA</strong> (🟢→🔵) → 4) Ve a <strong>Lotes</strong> para correlaciones
           </p>
         </CardContent>
       </Card>
