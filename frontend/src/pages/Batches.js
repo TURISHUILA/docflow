@@ -200,6 +200,27 @@ const Batches = () => {
     toast.info('Sugerencia descartada');
   };
 
+  const reanalyzeGroup = async (suggestion, index) => {
+    setReanalyzingGroup(prev => ({ ...prev, [index]: true }));
+    try {
+      toast.info(`Re-analizando ${suggestion.num_documentos} documentos del grupo...`);
+      
+      await axios.post(
+        `${API}/documents/reanalyze-group`,
+        suggestion.document_ids,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Actualizar sugerencias después del re-análisis
+      await fetchSuggestions();
+      toast.success('Grupo re-analizado. Las sugerencias han sido actualizadas.');
+    } catch (error) {
+      toast.error('Error al re-analizar el grupo');
+    } finally {
+      setReanalyzingGroup(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
   const generatePDF = async (batchId) => {
     setGenerating(prev => ({ ...prev, [batchId]: true }));
     try {
