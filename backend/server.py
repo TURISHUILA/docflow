@@ -797,7 +797,7 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
     analysis = await analyze_document_with_gpt(temp_path, doc['mime_type'])
     
     update_data = {
-        "status": DocumentStatus.EN_PROCESO,
+        "status": DocumentStatus.ANALIZADO,  # Cambio: ahora es ANALIZADO
         "analisis_completo": analysis
     }
     
