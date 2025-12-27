@@ -273,15 +273,16 @@ const Upload = () => {
           </Card>
 
           {/* Info Card */}
-          <Card className="border-emerald-200 bg-emerald-50/50">
+          <Card className="border-blue-200 bg-blue-50/50">
             <CardContent className="p-6">
               <div className="flex gap-3">
-                <CheckCircle size={24} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                <AlertCircle size={24} className="text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-emerald-900 mb-1">Procesamiento Automático</p>
-                  <p className="text-sm text-emerald-700 leading-relaxed">
-                    Los documentos serán analizados automáticamente para extraer información relevante: 
-                    valores, fechas, conceptos y beneficiarios.
+                  <p className="font-semibold text-blue-900 mb-1">Importante</p>
+                  <p className="text-sm text-blue-700 leading-relaxed">
+                    Después de subir todos los archivos a las 4 carpetas, ve a la sección 
+                    <strong> Documentos </strong> y presiona el botón <strong>"ANALIZAR"</strong> para 
+                    procesar todos los documentos con IA.
                   </p>
                 </div>
               </div>
