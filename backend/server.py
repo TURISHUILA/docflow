@@ -739,7 +739,7 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
                             "uploaded_by": user.id,
                             "file_size": len(page_data),
                             "mime_type": "application/pdf",
-                            "status": DocumentStatus.EN_PROCESO,
+                            "status": DocumentStatus.ANALIZADO,  # Cambio: ahora es ANALIZADO
                             "uploaded_at": datetime.now(timezone.utc).isoformat(),
                             "file_data": page_data,
                             "parent_document_id": doc_id,
