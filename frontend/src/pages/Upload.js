@@ -16,7 +16,7 @@ const DOCUMENT_TYPES = [
   { value: 'soporte_pago', label: 'Soporte de Pago' },
 ];
 
-const MAX_FILES = 50;
+const MAX_FILES = 70;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TOTAL_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -191,7 +191,7 @@ const Upload = () => {
                 <p className="text-zinc-700 font-medium mb-1">Arrastra archivos aquí</p>
                 <p className="text-sm text-zinc-500">o haz clic para seleccionar</p>
                 <p className="text-xs text-zinc-400 mt-2">PDF, JPG, PNG</p>
-                <p className="text-xs text-zinc-400">Máx. 50 archivos, 10MB cada uno, 100MB total</p>
+                <p className="text-xs text-zinc-400">Máx. 70 archivos, 10MB cada uno, 100MB total</p>
               </div>
               <input
                 id="fileInput"
