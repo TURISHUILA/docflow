@@ -35,6 +35,8 @@ const Batches = () => {
   const [reanalyzing, setReanalyzing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [reanalyzingGroup, setReanalyzingGroup] = useState({});
+  const [creatingAll, setCreatingAll] = useState(false);
+  const [creatingAllProgress, setCreatingAllProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
     fetchBatches();
