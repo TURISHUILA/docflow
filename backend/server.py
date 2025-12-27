@@ -484,9 +484,22 @@ async def upload_documents(
     if total_size > MAX_TOTAL_SIZE:
         raise HTTPException(status_code=400, detail="El tamaño total excede 100MB")
     
+    # Obtener nombres de archivos existentes en esta carpeta/tipo
+    existing_docs = await db.documents.find(
+        {"tipo_documento": tipo_documento},
+        {"filename": 1, "_id": 0}
+    ).to_list(10000)
+    existing_filenames = set(doc['filename'] for doc in existing_docs)
+    
     uploaded_docs = []
+    duplicates = []
     
     for file in files:
+        # Verificar si ya existe un archivo con el mismo nombre en esta carpeta
+        if file.filename in existing_filenames:
+            duplicates.append(file.filename)
+            continue
+        
         # Validar tamaño individual
         file_data = await file.read()
         if len(file_data) > MAX_FILE_SIZE:
@@ -525,15 +538,23 @@ async def upload_documents(
             "status": doc_metadata.status
         })
         
+        # Añadir al set de existentes para detectar duplicados dentro del mismo lote
+        existing_filenames.add(file.filename)
+        
         # Limpiar archivo temporal
         try:
             os.remove(temp_path)
         except:
             pass
     
-    await log_action(user, "UPLOAD_DOCUMENTS", f"Subidos {len(files)} documentos tipo {tipo_documento}")
+    await log_action(user, "UPLOAD_DOCUMENTS", f"Subidos {len(uploaded_docs)} documentos tipo {tipo_documento}, {len(duplicates)} duplicados omitidos")
     
-    return {"uploaded": len(uploaded_docs), "documents": uploaded_docs}
+    return {
+        "uploaded": len(uploaded_docs), 
+        "documents": uploaded_docs,
+        "duplicates": len(duplicates),
+        "duplicate_files": duplicates
+    }
 
 @api_router.get("/documents/list")
 async def list_documents(authorization: str = Header(None), status: Optional[str] = None):
