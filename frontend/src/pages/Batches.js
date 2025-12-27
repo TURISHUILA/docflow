@@ -419,11 +419,61 @@ const Batches = () => {
       {/* Sugerencias de IA */}
       {(suggestions.length > 0 || loadingSuggestions) && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="text-amber-500" size={20} />
-            <h2 className="text-xl font-semibold text-zinc-900">Sugerencias de IA</h2>
-            {loadingSuggestions && <Loader2 className="animate-spin text-zinc-400" size={18} />}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="text-amber-500" size={20} />
+              <h2 className="text-xl font-semibold text-zinc-900">Sugerencias de IA</h2>
+              <Badge variant="outline" className="ml-2">{suggestions.length} grupos</Badge>
+              {loadingSuggestions && <Loader2 className="animate-spin text-zinc-400" size={18} />}
+            </div>
           </div>
+
+          {/* Botón CREAR TODOS LOS LOTES Y PDFs */}
+          {suggestions.length > 0 && (
+            <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Rocket size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-emerald-900">Crear Todos los Lotes y PDFs</h3>
+                      <p className="text-sm text-emerald-700 mt-1">
+                        Procesa automáticamente los {suggestions.length} grupos correlacionados y genera todos los PDFs consolidados.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={createAllBatchesAndPDFs}
+                    disabled={creatingAll || suggestions.length === 0}
+                    size="lg"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-10 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+                  >
+                    {creatingAll ? (
+                      <><Loader2 size={22} className="animate-spin mr-3" />PROCESANDO...</>
+                    ) : (
+                      <><Rocket size={22} className="mr-3" />CREAR TODOS ({suggestions.length})</>
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Barra de progreso */}
+                {creatingAll && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex justify-between text-sm text-emerald-700">
+                      <span>Progreso</span>
+                      <span>{creatingAllProgress.current} de {creatingAllProgress.total} lotes</span>
+                    </div>
+                    <Progress 
+                      value={(creatingAllProgress.current / creatingAllProgress.total) * 100} 
+                      className="h-3 bg-emerald-200"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
           
           {suggestions.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
