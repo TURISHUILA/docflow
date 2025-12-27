@@ -201,24 +201,60 @@ const Documents = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">Documentos</h1>
-          <p className="text-zinc-500 mt-2">{totalDocs} documentos en total</p>
+          <p className="text-zinc-500 mt-2">
+            {totalDocs} documentos en total
+            {pendingCount > 0 && <span className="text-amber-600 font-medium"> • {pendingCount} pendientes de análisis</span>}
+          </p>
         </div>
-
-        {pendingCount > 0 && (
-          <Button
-            onClick={processAllLoaded}
-            disabled={processingAll}
-            size="lg"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8"
-          >
-            {processingAll ? (
-              <><Loader2 size={18} className="animate-spin mr-2" />ANALIZANDO...</>
-            ) : (
-              <><Search size={18} className="mr-2" />ANALIZAR ({pendingCount})</>
-            )}
-          </Button>
-        )}
       </div>
+
+      {/* Botón ANALIZAR prominente */}
+      {pendingCount > 0 && (
+        <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Search size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-blue-900">Análisis con IA</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Hay <strong>{pendingCount} documentos</strong> pendientes de análisis. 
+                    La IA extraerá tercero, valor, fecha y correlacionará los documentos entre carpetas.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={processAllLoaded}
+                disabled={processingAll}
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+              >
+                {processingAll ? (
+                  <><Loader2 size={22} className="animate-spin mr-3" />ANALIZANDO...</>
+                ) : (
+                  <><Search size={22} className="mr-3" />ANALIZAR TODOS</>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Mensaje cuando todo está analizado */}
+      {pendingCount === 0 && totalDocs > 0 && (
+        <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle size={24} className="text-emerald-600" />
+              <p className="text-emerald-800 font-medium">
+                Todos los documentos han sido analizados. Ve a <strong>Lotes</strong> para ver las sugerencias de correlación.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Carpetas por tipo de documento */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
