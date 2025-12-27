@@ -409,17 +409,17 @@ const Documents = () => {
                               <Eye size={14} />
                             </Button>
                             
-                            {/* Re-validar (solo para documentos ya analizados) */}
-                            {doc.status === 'en_proceso' && (
+                            {/* Re-validar (para documentos pendientes o con error) */}
+                            {['cargado', 'revision'].includes(doc.status) && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => analyzeDocument(doc.id, true)}
-                                disabled={analyzing[doc.id]}
-                                className="h-8 border-amber-300 text-amber-700"
-                                title="Re-analizar documento"
+                                onClick={() => validateDocument(doc.id)}
+                                disabled={validating[doc.id]}
+                                className="h-8 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                title="Validar documento"
                               >
-                                {analyzing[doc.id] ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                {validating[doc.id] ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
                               </Button>
                             )}
                             
