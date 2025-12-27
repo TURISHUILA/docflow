@@ -1839,6 +1839,34 @@ async def list_pdfs(authorization: str = Header(None)):
     
     return {"pdfs": pdfs}
 
+@api_router.delete("/pdfs/{pdf_id}")
+async def delete_consolidated_pdf(pdf_id: str, authorization: str = Header(None)):
+    """Elimina un PDF consolidado y su lote asociado"""
+    user = await get_current_user(authorization)
+    
+    pdf = await db.consolidated_pdfs.find_one({"id": pdf_id}, {"_id": 0})
+    if not pdf:
+        raise HTTPException(status_code=404, detail="PDF no encontrado")
+    
+    # Obtener el batch asociado
+    batch = await db.batches.find_one({"id": pdf.get('batch_id')}, {"_id": 0})
+    
+    if batch:
+        # Liberar los documentos del lote (quitar batch_id)
+        await db.documents.update_many(
+            {"batch_id": batch['id']},
+            {"$unset": {"batch_id": ""}, "$set": {"status": DocumentStatus.ANALIZADO}}
+        )
+        # Eliminar el lote
+        await db.batches.delete_one({"id": batch['id']})
+    
+    # Eliminar el PDF
+    await db.consolidated_pdfs.delete_one({"id": pdf_id})
+    
+    await log_action(user, "DELETE_PDF", f"Eliminado PDF consolidado {pdf['filename']}")
+    
+    return {"success": True, "message": "PDF consolidado eliminado exitosamente"}
+
 @api_router.get("/pdfs/{pdf_id}/details")
 async def get_pdf_details(pdf_id: str, authorization: str = Header(None)):
     """Obtiene los detalles completos de un PDF consolidado incluyendo los documentos que lo conforman"""
