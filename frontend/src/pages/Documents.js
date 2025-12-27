@@ -208,12 +208,13 @@ const Documents = () => {
           <Button
             onClick={processAllLoaded}
             disabled={processingAll}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            size="lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8"
           >
             {processingAll ? (
-              <><Loader2 size={16} className="animate-spin mr-2" />Validando...</>
+              <><Loader2 size={18} className="animate-spin mr-2" />ANALIZANDO...</>
             ) : (
-              <><Play size={16} className="mr-2" />Validar Todos ({pendingCount})</>
+              <><Search size={18} className="mr-2" />ANALIZAR ({pendingCount})</>
             )}
           </Button>
         )}
