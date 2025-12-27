@@ -143,6 +143,57 @@ const Batches = () => {
     }
   };
 
+  const createAllBatchesAndPDFs = async () => {
+    if (suggestions.length === 0) {
+      toast.error('No hay sugerencias para procesar');
+      return;
+    }
+
+    setCreatingAll(true);
+    setCreatingAllProgress({ current: 0, total: suggestions.length });
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    toast.info(`Iniciando creación de ${suggestions.length} lotes y PDFs...`);
+
+    for (let i = 0; i < suggestions.length; i++) {
+      const suggestion = suggestions[i];
+      setCreatingAllProgress({ current: i + 1, total: suggestions.length });
+      
+      try {
+        // Crear lote y generar PDF
+        await axios.post(
+          `${API}/batches/create-and-generate`,
+          suggestion.document_ids,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        successCount++;
+      } catch (error) {
+        console.error(`Error en grupo ${i + 1}:`, error);
+        errorCount++;
+      }
+    }
+
+    setCreatingAll(false);
+    setCreatingAllProgress({ current: 0, total: 0 });
+    
+    // Actualizar datos
+    await fetchBatches();
+    await fetchSuggestions();
+    
+    if (errorCount === 0) {
+      toast.success(`¡${successCount} lotes creados y PDFs generados exitosamente!`);
+    } else {
+      toast.warning(`${successCount} lotes creados, ${errorCount} con errores`);
+    }
+    
+    // Navegar a PDFs si hubo éxitos
+    if (successCount > 0) {
+      setTimeout(() => navigate('/pdfs'), 1500);
+    }
+  };
+
   const createBatch = async () => {
     if (selectedDocs.length === 0) {
       toast.error('Selecciona al menos un documento');
