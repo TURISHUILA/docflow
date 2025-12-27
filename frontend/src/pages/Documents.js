@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { FileText, Search, Play, RefreshCw, Eye, CheckCircle, AlertTriangle, Loader2, Trash2, Layers, FolderOpen, Receipt, FileCheck, CreditCard } from 'lucide-react';
+import { FileText, Search, RefreshCw, Eye, CheckCircle, AlertTriangle, Loader2, Trash2, Layers, FolderOpen, Receipt, FileCheck, CreditCard } from 'lucide-react';
 
 // Configuración de colores por tipo de documento
 const folderConfig = {
