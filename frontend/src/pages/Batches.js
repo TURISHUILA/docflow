@@ -257,17 +257,36 @@ const Batches = () => {
   const reanalyzeGroup = async (suggestion, index) => {
     setReanalyzingGroup(prev => ({ ...prev, [index]: true }));
     try {
-      toast.info(`Re-analizando ${suggestion.num_documentos} documentos del grupo...`);
+      toast.info(`Re-analizando ${suggestion.num_documentos} documentos y buscando coincidencias...`);
       
-      await axios.post(
+      const response = await axios.post(
         `${API}/documents/reanalyze-group`,
         suggestion.document_ids,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      // Actualizar sugerencias después del re-análisis
+      const { success, new_matches } = response.data;
+      
+      if (new_matches && new_matches.length > 0) {
+        // Mostrar los nuevos documentos encontrados
+        toast.success(
+          `${success} documentos re-analizados. ¡Encontrados ${new_matches.length} nuevos documentos que coinciden!`,
+          { duration: 5000 }
+        );
+        
+        // Mostrar detalles de los nuevos matches
+        new_matches.forEach(match => {
+          toast.info(
+            `Nuevo: ${match.filename} - ${match.tercero || 'Sin tercero'} - $${match.valor?.toLocaleString('es-CO') || '0'}`,
+            { duration: 4000 }
+          );
+        });
+      } else {
+        toast.success(`${success} documentos re-analizados. No se encontraron documentos adicionales.`);
+      }
+      
+      // Actualizar sugerencias para incluir los nuevos documentos
       await fetchSuggestions();
-      toast.success('Grupo re-analizado. Las sugerencias han sido actualizadas.');
     } catch (error) {
       toast.error('Error al re-analizar el grupo');
     } finally {
