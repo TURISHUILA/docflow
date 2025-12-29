@@ -1092,10 +1092,13 @@ async def suggest_batches(authorization: str = Header(None)):
     """Sugiere lotes automáticamente basándose en correlaciones de documentos analizados"""
     user = await get_current_user(authorization)
     
-    # Obtener documentos en proceso (ya analizados)
+    # Obtener documentos analizados (sin lote asignado)
     docs = await db.documents.find(
-        {"status": DocumentStatus.EN_PROCESO},
-        {"_id": 0}
+        {
+            "status": {"$in": [DocumentStatus.EN_PROCESO, DocumentStatus.ANALIZADO]},
+            "batch_id": {"$exists": False}
+        },
+        {"_id": 0, "file_data": 0}
     ).to_list(1000)
     
     if not docs:
