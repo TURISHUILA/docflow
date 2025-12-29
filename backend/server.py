@@ -1665,10 +1665,14 @@ async def delete_documents_by_date(date: str, authorization: str = Header(None))
 
 @api_router.post("/documents/reanalyze-group")
 async def reanalyze_group(document_ids: List[str], authorization: str = Header(None)):
-    """Re-analiza un grupo específico de documentos"""
+    """Re-analiza un grupo específico de documentos Y busca nuevos documentos que coincidan"""
     user = await get_current_user(authorization)
     
-    results = {"success": 0, "failed": 0, "errors": []}
+    results = {"success": 0, "failed": 0, "errors": [], "new_matches": []}
+    
+    # Primero, re-analizar los documentos existentes del grupo
+    group_terceros = set()
+    group_valores = set()
     
     for doc_id in document_ids:
         try:
@@ -1687,18 +1691,20 @@ async def reanalyze_group(document_ids: List[str], authorization: str = Header(N
             analysis = await analyze_document_with_gpt(temp_path, doc['mime_type'])
             
             update_data = {
-                "status": DocumentStatus.EN_PROCESO,
+                "status": DocumentStatus.ANALIZADO,
                 "analisis_completo": analysis
             }
             
             if analysis.get("valor") is not None:
                 update_data["valor"] = analysis["valor"]
+                group_valores.add(analysis["valor"])
             if analysis.get("fecha"):
                 update_data["fecha"] = analysis["fecha"]
             if analysis.get("concepto"):
                 update_data["concepto"] = analysis["concepto"]
             if analysis.get("tercero"):
                 update_data["tercero"] = analysis["tercero"]
+                group_terceros.add(analysis["tercero"].upper())
             if analysis.get("nit"):
                 update_data["nit"] = analysis["nit"]
             if analysis.get("numero_documento"):
@@ -1716,7 +1722,54 @@ async def reanalyze_group(document_ids: List[str], authorization: str = Header(N
             results["failed"] += 1
             results["errors"].append(f"Error en {doc_id}: {str(e)}")
     
-    await log_action(user, "REANALYZE_GROUP", f"Re-analizados {results['success']} documentos")
+    # Segundo, buscar nuevos documentos que coincidan con el grupo
+    if group_terceros or group_valores:
+        # Buscar documentos analizados que no estén en un lote y que coincidan
+        all_docs = await db.documents.find({
+            "id": {"$nin": document_ids},  # No incluir los que ya están en el grupo
+            "batch_id": {"$exists": False},  # No en un lote
+            "status": {"$in": [DocumentStatus.ANALIZADO, DocumentStatus.EN_PROCESO, DocumentStatus.VALIDADO]}
+        }, {"_id": 0, "file_data": 0}).to_list(1000)
+        
+        for doc in all_docs:
+            doc_tercero = (doc.get('tercero') or '').upper()
+            doc_valor = doc.get('valor')
+            
+            # Verificar coincidencia por tercero (coincidencia parcial)
+            tercero_match = False
+            for gt in group_terceros:
+                if gt and doc_tercero:
+                    # Coincidencia parcial: al menos 3 caracteres consecutivos iguales
+                    if len(gt) >= 3 and len(doc_tercero) >= 3:
+                        if gt in doc_tercero or doc_tercero in gt:
+                            tercero_match = True
+                            break
+                        # Comparar palabras
+                        gt_words = set(gt.split())
+                        doc_words = set(doc_tercero.split())
+                        if gt_words & doc_words:  # Intersección de palabras
+                            tercero_match = True
+                            break
+            
+            # Verificar coincidencia por valor (tolerancia del 1%)
+            valor_match = False
+            if doc_valor:
+                for gv in group_valores:
+                    if gv and abs(doc_valor - gv) / max(gv, 1) < 0.01:
+                        valor_match = True
+                        break
+            
+            # Si coincide por tercero Y valor, agregarlo a los nuevos matches
+            if tercero_match and valor_match:
+                results["new_matches"].append({
+                    "id": doc['id'],
+                    "filename": doc['filename'],
+                    "tipo_documento": doc['tipo_documento'],
+                    "tercero": doc.get('tercero'),
+                    "valor": doc.get('valor')
+                })
+    
+    await log_action(user, "REANALYZE_GROUP", f"Re-analizados {results['success']} documentos, {len(results['new_matches'])} nuevos coincidentes encontrados")
     
     return results
 
