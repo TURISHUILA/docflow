@@ -316,18 +316,33 @@ const Documents = () => {
           
           return (
             <Card key={tipo} className={`${config.borderColor} border-2`}>
-              <CardHeader className={`${config.lightColor} rounded-t-lg`}>
-                <div className="flex items-center justify-between">
+              <CardHeader className={`${config.lightColor} rounded-t-lg py-3`}>
+                <div className="flex items-center justify-between gap-2">
                   <CardTitle className={`text-lg flex items-center gap-3 ${config.textColor}`}>
                     <div className={`w-10 h-10 ${config.color} rounded-lg flex items-center justify-center`}>
                       <Icon size={20} className="text-white" />
                     </div>
                     {config.label}
                   </CardTitle>
+                  
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={config.textColor}>
-                      {docs.length} docs
-                    </Badge>
+                    {/* Botón VALIDAR junto al nombre */}
+                    {pendingInFolder > 0 && (
+                      <Button
+                        onClick={() => validateFolder(tipo)}
+                        disabled={validatingFolder[tipo]}
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                      >
+                        {validatingFolder[tipo] ? (
+                          <><Loader2 size={14} className="animate-spin mr-1" />Validando...</>
+                        ) : (
+                          <><ShieldCheck size={14} className="mr-1" />VALIDAR ({pendingInFolder})</>
+                        )}
+                      </Button>
+                    )}
+                    
+                    {/* Badges de estado */}
                     {pendingInFolder > 0 && (
                       <Badge className="bg-rose-100 text-rose-700 border-rose-300">
                         🔴 {pendingInFolder}
@@ -343,22 +358,11 @@ const Documents = () => {
                         🔵 {analyzedInFolder}
                       </Badge>
                     )}
+                    <Badge variant="outline" className={config.textColor}>
+                      {docs.length} docs
+                    </Badge>
                   </div>
                 </div>
-                {/* Botón Validar Carpeta */}
-                {pendingInFolder > 0 && (
-                  <Button
-                    onClick={() => validateFolder(tipo)}
-                    disabled={validatingFolder[tipo]}
-                    className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    {validatingFolder[tipo] ? (
-                      <><Loader2 size={16} className="animate-spin mr-2" />Validando...</>
-                    ) : (
-                      <><ShieldCheck size={16} className="mr-2" />Validar Carpeta ({pendingInFolder})</>
-                    )}
-                  </Button>
-                )}
               </CardHeader>
               
               <CardContent className="p-0">
