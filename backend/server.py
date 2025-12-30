@@ -833,6 +833,7 @@ async def analyze_document(doc_id: str, authorization: str = Header(None)):
 async def analyze_all_documents(authorization: str = Header(None)):
     """Analiza todos los documentos VALIDADOS con IA y busca correlaciones"""
     user = await get_current_user(authorization)
+    logging.info("=== INICIO analyze_all_documents ===")
     
     # Verificar que todas las carpetas tengan sus documentos validados
     folder_order = [
@@ -842,23 +843,27 @@ async def analyze_all_documents(authorization: str = Header(None)):
         DocumentType.SOPORTE_PAGO
     ]
     
-    # Obtener documentos validados (listos para analizar) - LIMITAR A 5 por llamada
+    # Obtener documentos validados (listos para analizar) - LIMITAR A 3 por llamada
     docs = await db.documents.find(
         {"status": DocumentStatus.VALIDADO},
         {"_id": 0}
-    ).to_list(5)  # Solo 5 documentos por llamada para evitar timeout
+    ).to_list(3)  # Solo 3 documentos por llamada para evitar timeout
+    
+    logging.info(f"Documentos a analizar: {len(docs)}")
     
     if not docs:
         return {"message": "No hay documentos pendientes de análisis", "analyzed": 0, "remaining": 0}
     
     # Contar total restante
     total_remaining = await db.documents.count_documents({"status": DocumentStatus.VALIDADO})
+    logging.info(f"Total restantes: {total_remaining}")
     
     analyzed_count = 0
     errors = []
     
     for doc in docs:
         try:
+            logging.info(f"Analizando: {doc['filename']}")
             # Guardar temporalmente para análisis
             temp_path = f"/tmp/{doc['id']}_{doc['filename']}"
             with open(temp_path, "wb") as f:
@@ -866,6 +871,7 @@ async def analyze_all_documents(authorization: str = Header(None)):
             
             # Analizar con Gemini
             analysis = await analyze_document_with_gpt(temp_path, doc['mime_type'])
+            logging.info(f"Análisis completado: {doc['filename']}")
             
             # Actualizar documento con análisis
             update_data = {
