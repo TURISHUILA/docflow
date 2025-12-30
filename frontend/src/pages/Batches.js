@@ -108,33 +108,75 @@ const Batches = () => {
   const reanalyzeAll = async () => {
     setReanalyzing(true);
     try {
-      // Paso 1: Obtener documentos pendientes
+      // Paso 1: Obtener documentos pendientes de validar y analizar
       const docsResponse = await axios.get(`${API}/documents/list`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const pendingDocs = docsResponse.data.documents.filter(doc => doc.status === 'cargado');
+      const allDocs = docsResponse.data.documents;
       
-      if (pendingDocs.length > 0) {
-        toast.info(`Analizando ${pendingDocs.length} documentos pendientes...`);
+      // Documentos que necesitan validación
+      const needsValidation = allDocs.filter(doc => doc.status === 'cargado');
+      // Documentos validados que necesitan análisis
+      const needsAnalysis = allDocs.filter(doc => doc.status === 'validado');
+      
+      // Paso 1.1: Validar documentos pendientes (por carpeta)
+      if (needsValidation.length > 0) {
+        toast.info(`Validando ${needsValidation.length} documentos pendientes...`);
+        const folders = [...new Set(needsValidation.map(d => d.tipo_documento))];
         
-        // Analizar documentos pendientes
-        for (const doc of pendingDocs) {
+        for (const folder of folders) {
           try {
-            await axios.post(`${API}/documents/${doc.id}/analyze`, {}, {
+            await axios.post(`${API}/documents/validate-folder/${folder}`, {}, {
               headers: { Authorization: `Bearer ${token}` }
             });
           } catch (error) {
-            console.error(`Error analyzing ${doc.filename}:`, error);
+            console.error(`Error validating folder ${folder}:`, error);
           }
         }
       }
       
+      // Paso 1.2: Analizar documentos validados (en lotes pequeños)
+      toast.info('Analizando documentos con IA...');
+      let totalAnalyzed = 0;
+      let remaining = 1;
+      let iterations = 0;
+      const maxIterations = 50;
+      
+      while (remaining > 0 && iterations < maxIterations) {
+        iterations++;
+        try {
+          const response = await axios.post(`${API}/documents/analyze-all`, {}, {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 120000
+          });
+          
+          totalAnalyzed += response.data.analyzed || 0;
+          remaining = response.data.remaining || 0;
+          
+          if (response.data.analyzed > 0) {
+            toast.success(`+${response.data.analyzed} analizados (Total: ${totalAnalyzed}, Restantes: ${remaining})`, { duration: 2000 });
+          }
+          
+          if (response.data.analyzed === 0) break;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (batchError) {
+          console.error('Error en lote de análisis:', batchError);
+          break;
+        }
+      }
+      
       // Paso 2: Actualizar correlaciones
-      toast.info('Buscando nuevas correlaciones...');
+      toast.info('Buscando correlaciones...');
       await fetchSuggestions();
       await fetchDocuments();
       
-      toast.success('Re-análisis completado. Las sugerencias han sido actualizadas.');
+      if (totalAnalyzed > 0) {
+        toast.success(`✅ ${totalAnalyzed} documentos analizados. Revisa las sugerencias de correlación.`, { duration: 5000 });
+      } else if (needsValidation.length === 0 && needsAnalysis.length === 0) {
+        toast.info('No hay documentos pendientes. Las correlaciones han sido actualizadas.');
+      } else {
+        toast.success('Re-análisis completado. Las sugerencias han sido actualizadas.');
+      }
     } catch (error) {
       toast.error('Error durante el re-análisis');
       console.error('Reanalysis error:', error);
