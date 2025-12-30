@@ -202,12 +202,12 @@ const Documents = () => {
     setDocUrl(null);
   };
 
-  // Agrupar documentos por tipo
+  // Agrupar documentos por tipo (excluir los que ya están en un lote)
   const groupedDocs = {
-    comprobante_egreso: documents.filter(d => d.tipo_documento === 'comprobante_egreso' && d.status !== 'dividido'),
-    cuenta_por_pagar: documents.filter(d => d.tipo_documento === 'cuenta_por_pagar' && d.status !== 'dividido'),
-    factura: documents.filter(d => d.tipo_documento === 'factura' && d.status !== 'dividido'),
-    soporte_pago: documents.filter(d => d.tipo_documento === 'soporte_pago' && d.status !== 'dividido'),
+    comprobante_egreso: documents.filter(d => d.tipo_documento === 'comprobante_egreso' && d.status !== 'dividido' && !d.batch_id),
+    cuenta_por_pagar: documents.filter(d => d.tipo_documento === 'cuenta_por_pagar' && d.status !== 'dividido' && !d.batch_id),
+    factura: documents.filter(d => d.tipo_documento === 'factura' && d.status !== 'dividido' && !d.batch_id),
+    soporte_pago: documents.filter(d => d.tipo_documento === 'soporte_pago' && d.status !== 'dividido' && !d.batch_id),
   };
 
   // Contadores
