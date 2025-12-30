@@ -326,18 +326,23 @@ const Documents = () => {
                   </CardTitle>
                   
                   <div className="flex items-center gap-2">
-                    {/* Botón VALIDAR junto al nombre */}
-                    {pendingInFolder > 0 && (
+                    {/* Botón VALIDAR siempre visible si hay documentos */}
+                    {docs.length > 0 && (
                       <Button
                         onClick={() => validateFolder(tipo)}
-                        disabled={validatingFolder[tipo]}
+                        disabled={validatingFolder[tipo] || pendingInFolder === 0}
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        className={pendingInFolder > 0 
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                          : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+                        }
                       >
                         {validatingFolder[tipo] ? (
                           <><Loader2 size={14} className="animate-spin mr-1" />Validando...</>
-                        ) : (
+                        ) : pendingInFolder > 0 ? (
                           <><ShieldCheck size={14} className="mr-1" />VALIDAR ({pendingInFolder})</>
+                        ) : (
+                          <><ShieldCheck size={14} className="mr-1" />VALIDAR</>
                         )}
                       </Button>
                     )}
