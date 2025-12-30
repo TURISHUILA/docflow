@@ -99,7 +99,11 @@ const Batches = () => {
       });
       const allDocs = response.data.documents;
       setDocuments(allDocs.filter(doc => !doc.batch_id && doc.status === 'en_proceso'));
-      setPendingCount(allDocs.filter(doc => doc.status === 'cargado').length);
+      // Contar documentos que necesitan procesamiento (cargado o validado)
+      const needsProcessing = allDocs.filter(doc => 
+        doc.status === 'cargado' || doc.status === 'validado'
+      ).length;
+      setPendingCount(needsProcessing);
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
