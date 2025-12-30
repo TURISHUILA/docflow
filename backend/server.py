@@ -842,11 +842,11 @@ async def analyze_all_documents(authorization: str = Header(None)):
         DocumentType.SOPORTE_PAGO
     ]
     
-    # Obtener documentos validados (listos para analizar) - LIMITAR A 10 por llamada
+    # Obtener documentos validados (listos para analizar) - LIMITAR A 5 por llamada
     docs = await db.documents.find(
         {"status": DocumentStatus.VALIDADO},
         {"_id": 0}
-    ).to_list(10)  # Solo 10 documentos por llamada
+    ).to_list(5)  # Solo 5 documentos por llamada para evitar timeout
     
     if not docs:
         return {"message": "No hay documentos pendientes de análisis", "analyzed": 0, "remaining": 0}
