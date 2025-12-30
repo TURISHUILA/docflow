@@ -239,12 +239,13 @@ const Documents = () => {
             {pendingValidation > 0 && <span className="text-rose-600 font-medium"> • {pendingValidation} pendientes de validar</span>}
             {validatedCount > 0 && <span className="text-emerald-600 font-medium"> • {validatedCount} validados</span>}
             {analyzedCount > 0 && <span className="text-indigo-600 font-medium"> • {analyzedCount} analizados</span>}
+            {inBatchCount > 0 && <span className="text-violet-600 font-medium"> • {inBatchCount} en lotes</span>}
           </p>
         </div>
       </div>
 
-      {/* Botón ANALIZAR CON IA - Solo visible cuando todo está validado */}
-      {allValidated && (
+      {/* Botón ANALIZAR CON IA - Solo visible cuando hay validados */}
+      {validatedCount > 0 && (
         <Card className="border-2 border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -255,7 +256,7 @@ const Documents = () => {
                 <div>
                   <h3 className="text-lg font-bold text-indigo-900">Analizar con IA y Correlacionar</h3>
                   <p className="text-sm text-indigo-700 mt-1">
-                    Todos los documentos están validados. La IA extraerá tercero, valor, fecha y 
+                    Hay {validatedCount} documentos validados listos. La IA extraerá tercero, valor, fecha y 
                     correlacionará los documentos entre las 4 carpetas.
                   </p>
                 </div>
