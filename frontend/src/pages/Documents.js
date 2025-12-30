@@ -137,41 +137,53 @@ const Documents = () => {
   const analyzeAllWithAI = async () => {
     setAnalyzingAll(true);
     try {
-      toast.info('Iniciando análisis con IA (en lotes de 10)...');
+      toast.info('Iniciando análisis con IA (procesando de 5 en 5)...');
       
       let totalAnalyzed = 0;
       let remaining = 1;
+      let iterations = 0;
+      const maxIterations = 50; // Máximo 250 documentos (50 * 5)
       
       // Procesar en lotes hasta que no queden más
-      while (remaining > 0) {
+      while (remaining > 0 && iterations < maxIterations) {
+        iterations++;
         try {
           const response = await axios.post(`${API}/documents/analyze-all`, {}, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 120000 // 2 minutos de timeout
           });
           
           totalAnalyzed += response.data.analyzed || 0;
           remaining = response.data.remaining || 0;
           
           if (response.data.analyzed > 0) {
-            toast.info(`Analizados ${totalAnalyzed} documentos... (${remaining} restantes)`);
+            toast.success(`Lote ${iterations}: +${response.data.analyzed} analizados (Total: ${totalAnalyzed}, Restantes: ${remaining})`, { duration: 3000 });
           }
-          
-          // Actualizar lista de documentos
-          await fetchDocuments();
           
           // Si no se analizó nada, salir del loop
           if (response.data.analyzed === 0) {
             break;
           }
+          
+          // Pequeña pausa entre lotes
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
         } catch (batchError) {
           console.error('Error en lote:', batchError);
-          toast.error('Error al analizar un lote de documentos');
+          if (batchError.code === 'ECONNABORTED') {
+            toast.warning('El servidor tardó mucho. Reintentando...');
+            continue;
+          }
+          toast.error('Error al analizar. Intenta de nuevo.');
           break;
         }
       }
       
+      // Actualizar lista al final
+      await fetchDocuments();
+      
       if (totalAnalyzed > 0) {
-        toast.success(`✅ ${totalAnalyzed} documentos analizados. Ve a Lotes para ver las correlaciones.`);
+        toast.success(`✅ ${totalAnalyzed} documentos analizados. Ve a Lotes para ver las correlaciones.`, { duration: 5000 });
       } else {
         toast.info('No hay documentos pendientes de analizar');
       }
