@@ -137,19 +137,44 @@ const Documents = () => {
   const analyzeAllWithAI = async () => {
     setAnalyzingAll(true);
     try {
-      toast.info('Iniciando análisis con IA y correlación...');
-      const response = await axios.post(`${API}/documents/analyze-all`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      toast.info('Iniciando análisis con IA (en lotes de 10)...');
       
-      if (!response.data.success && response.data.pending_validation) {
-        toast.error(response.data.message);
-      } else if (response.data.analyzed === 0) {
-        toast.info('No hay documentos pendientes de analizar');
-      } else {
-        toast.success(`${response.data.analyzed} documentos analizados. Ve a Lotes para ver las correlaciones.`);
+      let totalAnalyzed = 0;
+      let remaining = 1;
+      
+      // Procesar en lotes hasta que no queden más
+      while (remaining > 0) {
+        try {
+          const response = await axios.post(`${API}/documents/analyze-all`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          totalAnalyzed += response.data.analyzed || 0;
+          remaining = response.data.remaining || 0;
+          
+          if (response.data.analyzed > 0) {
+            toast.info(`Analizados ${totalAnalyzed} documentos... (${remaining} restantes)`);
+          }
+          
+          // Actualizar lista de documentos
+          await fetchDocuments();
+          
+          // Si no se analizó nada, salir del loop
+          if (response.data.analyzed === 0) {
+            break;
+          }
+        } catch (batchError) {
+          console.error('Error en lote:', batchError);
+          toast.error('Error al analizar un lote de documentos');
+          break;
+        }
       }
-      fetchDocuments();
+      
+      if (totalAnalyzed > 0) {
+        toast.success(`✅ ${totalAnalyzed} documentos analizados. Ve a Lotes para ver las correlaciones.`);
+      } else {
+        toast.info('No hay documentos pendientes de analizar');
+      }
     } catch (error) {
       toast.error('Error al analizar documentos');
     } finally {
