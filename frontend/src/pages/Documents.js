@@ -211,10 +211,13 @@ const Documents = () => {
   };
 
   // Contadores
-  const pendingValidation = documents.filter(doc => doc.status === 'cargado').length;
-  const validatedCount = documents.filter(doc => doc.status === 'validado').length;
-  const analyzedCount = documents.filter(doc => ['analizado', 'terminado'].includes(doc.status)).length;
-  const totalDocs = documents.filter(d => d.status !== 'dividido').length;
+  // Contadores (solo documentos disponibles, no en lotes)
+  const availableDocs = documents.filter(d => d.status !== 'dividido' && !d.batch_id);
+  const pendingValidation = availableDocs.filter(doc => doc.status === 'cargado').length;
+  const validatedCount = availableDocs.filter(doc => doc.status === 'validado').length;
+  const analyzedCount = availableDocs.filter(doc => ['analizado', 'en_proceso'].includes(doc.status)).length;
+  const inBatchCount = documents.filter(d => d.batch_id).length;
+  const totalDocs = availableDocs.length;
   const allValidated = pendingValidation === 0 && validatedCount > 0;
 
   if (loading) {
