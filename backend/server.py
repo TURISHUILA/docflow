@@ -842,26 +842,17 @@ async def analyze_all_documents(authorization: str = Header(None)):
         DocumentType.SOPORTE_PAGO
     ]
     
-    # Contar documentos pendientes de validar
-    pending_validation = await db.documents.count_documents({
-        "status": DocumentStatus.CARGADO
-    })
-    
-    if pending_validation > 0:
-        return {
-            "success": False,
-            "message": f"Hay {pending_validation} documentos pendientes de validar. Valida todas las carpetas primero.",
-            "pending_validation": pending_validation
-        }
-    
-    # Obtener documentos validados (listos para analizar)
+    # Obtener documentos validados (listos para analizar) - LIMITAR A 10 por llamada
     docs = await db.documents.find(
         {"status": DocumentStatus.VALIDADO},
         {"_id": 0}
-    ).to_list(1000)
+    ).to_list(10)  # Solo 10 documentos por llamada
     
     if not docs:
-        return {"message": "No hay documentos pendientes de análisis", "analyzed": 0}
+        return {"message": "No hay documentos pendientes de análisis", "analyzed": 0, "remaining": 0}
+    
+    # Contar total restante
+    total_remaining = await db.documents.count_documents({"status": DocumentStatus.VALIDADO})
     
     analyzed_count = 0
     errors = []
@@ -878,7 +869,7 @@ async def analyze_all_documents(authorization: str = Header(None)):
             
             # Actualizar documento con análisis
             update_data = {
-                "status": DocumentStatus.EN_PROCESO,
+                "status": DocumentStatus.ANALIZADO,
                 "analisis_completo": analysis
             }
             
