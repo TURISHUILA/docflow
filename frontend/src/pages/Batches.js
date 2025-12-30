@@ -455,9 +455,9 @@ const Batches = () => {
                 <h3 className="text-lg font-bold text-indigo-900">Re-analizar y Correlacionar</h3>
                 <p className="text-sm text-indigo-700 mt-1">
                   {pendingCount > 0 
-                    ? `Hay ${pendingCount} documentos pendientes. ` 
+                    ? `Hay ${pendingCount} documentos pendientes de procesar. ` 
                     : ''}
-                  La IA analizará documentos nuevos y buscará correlaciones entre todas las carpetas.
+                  Valida, analiza con IA y busca correlaciones automáticamente entre todas las carpetas.
                 </p>
               </div>
             </div>
