@@ -908,6 +908,7 @@ async def analyze_all_documents(authorization: str = Header(None)):
         "message": f"Análisis completado",
         "analyzed": analyzed_count,
         "total": len(docs),
+        "remaining": total_remaining - analyzed_count,
         "errors": errors if errors else None
     }
 
