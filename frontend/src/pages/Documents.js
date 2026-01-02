@@ -425,6 +425,24 @@ const Documents = () => {
                       </Button>
                     )}
                     
+                    {/* Botón BORRAR CARPETA */}
+                    {docs.length > 0 && (
+                      <Button
+                        onClick={() => deleteFolder(tipo)}
+                        disabled={deletingFolder[tipo]}
+                        size="sm"
+                        variant="outline"
+                        className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:border-rose-400"
+                        title={`Eliminar todos los documentos de ${config.label}`}
+                      >
+                        {deletingFolder[tipo] ? (
+                          <><Loader2 size={14} className="animate-spin mr-1" />Borrando...</>
+                        ) : (
+                          <><Trash2 size={14} className="mr-1" />Borrar</>
+                        )}
+                      </Button>
+                    )}
+                    
                     {/* Badges de estado */}
                     {pendingInFolder > 0 && (
                       <Badge className="bg-rose-100 text-rose-700 border-rose-300">
