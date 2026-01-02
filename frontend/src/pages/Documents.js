@@ -212,6 +212,42 @@ const Documents = () => {
     }
   };
 
+  // Eliminar todos los documentos de una carpeta
+  const deleteFolder = async (tipoDocumento) => {
+    const folderLabel = folderConfig[tipoDocumento]?.label || tipoDocumento;
+    const docsInFolder = groupedDocs[tipoDocumento]?.length || 0;
+    
+    if (docsInFolder === 0) {
+      toast.info('No hay documentos para eliminar en esta carpeta');
+      return;
+    }
+    
+    if (!window.confirm(`¿Estás seguro de eliminar TODOS los ${docsInFolder} documentos de "${folderLabel}"?\n\nEsta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    setDeletingFolder(prev => ({ ...prev, [tipoDocumento]: true }));
+    try {
+      const response = await axios.delete(`${API}/documents/folder/${tipoDocumento}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const { deleted_count, skipped_in_batch } = response.data;
+      
+      if (skipped_in_batch > 0) {
+        toast.warning(`Eliminados ${deleted_count} documentos. ${skipped_in_batch} documentos en lotes no fueron eliminados.`);
+      } else {
+        toast.success(`Eliminados ${deleted_count} documentos de ${folderLabel}`);
+      }
+      
+      fetchDocuments();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error al eliminar carpeta');
+    } finally {
+      setDeletingFolder(prev => ({ ...prev, [tipoDocumento]: false }));
+    }
+  };
+
   const viewDocument = async (doc) => {
     setViewingDoc(doc);
     setLoadingDoc(true);
