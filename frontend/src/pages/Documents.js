@@ -70,6 +70,7 @@ const Documents = () => {
   const [analyzingAll, setAnalyzingAll] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [deleting, setDeleting] = useState({});
+  const [deletingFolder, setDeletingFolder] = useState({});
   const [viewingDoc, setViewingDoc] = useState(null);
   const [docUrl, setDocUrl] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
