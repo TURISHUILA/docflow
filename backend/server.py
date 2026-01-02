@@ -1281,6 +1281,40 @@ async def delete_document(doc_id: str, authorization: str = Header(None)):
     
     return {"success": True, "message": "Documento eliminado exitosamente"}
 
+@api_router.delete("/documents/folder/{tipo_documento}")
+async def delete_folder_documents(tipo_documento: str, authorization: str = Header(None)):
+    """Elimina todos los documentos de una carpeta/tipo que NO estén en un lote"""
+    user = await get_current_user(authorization)
+    
+    # Validar tipo de documento
+    valid_types = ['comprobante_egreso', 'cuenta_por_pagar', 'factura', 'soporte_pago']
+    if tipo_documento not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Tipo de documento inválido. Debe ser uno de: {valid_types}")
+    
+    # Contar documentos en lotes (no se pueden eliminar)
+    in_batch_count = await db.documents.count_documents({
+        "tipo_documento": tipo_documento,
+        "batch_id": {"$exists": True, "$ne": None}
+    })
+    
+    # Eliminar documentos que NO están en un lote
+    result = await db.documents.delete_many({
+        "tipo_documento": tipo_documento,
+        "$or": [
+            {"batch_id": {"$exists": False}},
+            {"batch_id": None}
+        ]
+    })
+    
+    await log_action(user, "DELETE_FOLDER", f"Eliminados {result.deleted_count} documentos de carpeta {tipo_documento}")
+    
+    return {
+        "success": True,
+        "deleted_count": result.deleted_count,
+        "skipped_in_batch": in_batch_count,
+        "message": f"Eliminados {result.deleted_count} documentos" + (f" ({in_batch_count} en lotes no eliminados)" if in_batch_count > 0 else "")
+    }
+
 @api_router.post("/documents/{doc_id}/replace")
 async def replace_document(
     doc_id: str,
