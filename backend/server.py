@@ -1442,17 +1442,6 @@ async def suggest_batches(authorization: str = Header(None), use_ai: bool = True
         "message": "No se encontraron correlaciones entre los documentos",
         "method": "none"
     }
-                "document_ids": doc_ids,
-                "confianza": "alta" if len(matching_docs) >= 3 else "media"
-            })
-    
-    await log_action(user, "SUGGEST_BATCHES", f"Se sugirieron {len(correlations)} lotes por correlación básica")
-    
-    return {
-        "suggested_batches": correlations,
-        "total_suggestions": len(correlations),
-        "message": f"Se encontraron {len(correlations)} grupos de documentos correlacionados"
-    }
 
 @api_router.post("/batches/create")
 async def create_batch(
