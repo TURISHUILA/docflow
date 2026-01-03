@@ -604,6 +604,30 @@ const Batches = () => {
                       </div>
                     )}
                     
+                    {/* Tipo de correlación */}
+                    {suggestion.tipo_correlacion && (
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            suggestion.tipo_correlacion === 'valor_exacto' ? 'border-emerald-300 text-emerald-700 bg-emerald-50' :
+                            suggestion.tipo_correlacion === 'mismo_nit' ? 'border-blue-300 text-blue-700 bg-blue-50' :
+                            suggestion.tipo_correlacion === 'mismo_tercero' ? 'border-purple-300 text-purple-700 bg-purple-50' :
+                            'border-amber-300 text-amber-700 bg-amber-50'
+                          }
+                        >
+                          {suggestion.tipo_correlacion === 'valor_exacto' ? '💰 Valor exacto' :
+                           suggestion.tipo_correlacion === 'mismo_nit' ? '🏢 Mismo NIT' :
+                           suggestion.tipo_correlacion === 'mismo_tercero' ? '👥 Mismo tercero' :
+                           suggestion.tipo_correlacion === 'suma_facturas' ? '➕ Suma facturas' :
+                           suggestion.tipo_correlacion}
+                        </Badge>
+                        {suggestion.nit && (
+                          <span className="text-xs text-zinc-500">NIT: {suggestion.nit}</span>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2 pt-2">
                       <Button
                         onClick={() => createBatchFromSuggestion(suggestion, index)}
