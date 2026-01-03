@@ -1397,77 +1397,51 @@ async def suggest_batches(authorization: str = Header(None), use_ai: bool = True
     
     logging.info(f"Documentos encontrados: {len(docs)}")
     
-    # Filtrar solo documentos con tercero Y valor
-    docs_with_data = [d for d in docs if d.get('tercero') and d.get('valor')]
-    logging.info(f"Documentos con tercero y valor: {len(docs_with_data)}")
+    # Filtrar documentos con al menos tercero O valor (más flexible)
+    docs_with_data = [d for d in docs if d.get('tercero') or d.get('valor') or d.get('nit')]
+    logging.info(f"Documentos con datos útiles: {len(docs_with_data)}")
     
     if not docs_with_data:
-        return {"suggested_batches": [], "message": "No hay documentos analizados con datos extraídos"}
+        return {"suggested_batches": [], "message": "No hay documentos analizados con datos extraídos", "total_suggestions": 0}
     
     # USAR CLAUDE PARA CORRELACIÓN INTELIGENTE
     if use_ai and len(docs_with_data) >= 2:
         logging.info("Usando Claude Sonnet 4.5 para correlación inteligente...")
-        correlations = await correlate_documents_with_claude(docs_with_data)
-        
-        if correlations:
-            await log_action(user, "SUGGEST_BATCHES_AI", f"Claude sugirió {len(correlations)} lotes")
-            return {
-                "suggested_batches": correlations,
-                "total_suggestions": len(correlations),
-                "message": f"Claude encontró {len(correlations)} grupos correlacionados",
-                "method": "claude_ai"
-            }
-        else:
-            logging.warning("Claude no encontró correlaciones, usando método básico...")
+        try:
+            correlations = await correlate_documents_with_claude(docs_with_data)
+            
+            if correlations:
+                await log_action(user, "SUGGEST_BATCHES_AI", f"Claude sugirió {len(correlations)} lotes")
+                return {
+                    "suggested_batches": correlations,
+                    "total_suggestions": len(correlations),
+                    "message": f"Claude encontró {len(correlations)} grupos correlacionados",
+                    "method": "claude_ai"
+                }
+            else:
+                logging.warning("Claude no encontró correlaciones, usando método básico mejorado...")
+        except Exception as e:
+            logging.error(f"Error con Claude, usando fallback: {str(e)}")
     
-    # MÉTODO BÁSICO (fallback o si use_ai=False)
-    correlations = []
-    processed_docs = set()
+    # MÉTODO BÁSICO MEJORADO (fallback)
+    logging.info("Usando método básico mejorado...")
+    correlations = correlate_documents_basic(docs_with_data)
     
-    for doc in docs_with_data:
-        if doc['id'] in processed_docs:
-            continue
-            
-        valor = doc.get('valor')
-        tercero = doc.get('tercero')
-        
-        if not valor or not tercero:
-            continue
-        
-        matching_docs = [doc]
-        
-        for other_doc in docs_with_data:
-            if other_doc['id'] == doc['id'] or other_doc['id'] in processed_docs:
-                continue
-            
-            other_valor = other_doc.get('valor')
-            other_tercero = other_doc.get('tercero')
-            
-            if not other_valor or not other_tercero:
-                continue
-            
-            # Tercero: coincidencia parcial
-            tercero_words = set(w for w in tercero.upper().split() if len(w) > 3)
-            other_tercero_words = set(w for w in other_tercero.upper().split() if len(w) > 3)
-            tercero_match = len(tercero_words.intersection(other_tercero_words)) >= 1
-            
-            # Valor: coincidencia dentro del 1%
-            valor_match = abs(valor - other_valor) / valor < 0.01 if valor > 0 else False
-            
-            if tercero_match and valor_match:
-                matching_docs.append(other_doc)
-                processed_docs.add(other_doc['id'])
-        
-        if len(matching_docs) >= 2:
-            processed_docs.add(doc['id'])
-            tipos = {d['tipo_documento'] for d in matching_docs}
-            doc_ids = [d['id'] for d in matching_docs]
-            
-            correlations.append({
-                "tercero": tercero,
-                "valor": valor,
-                "num_documentos": len(matching_docs),
-                "tipos_documentos": list(tipos),
+    if correlations:
+        await log_action(user, "SUGGEST_BATCHES_BASIC", f"Método básico sugirió {len(correlations)} lotes")
+        return {
+            "suggested_batches": correlations,
+            "total_suggestions": len(correlations),
+            "message": f"Se encontraron {len(correlations)} grupos correlacionados",
+            "method": "basic_improved"
+        }
+    
+    return {
+        "suggested_batches": [],
+        "total_suggestions": 0,
+        "message": "No se encontraron correlaciones entre los documentos",
+        "method": "none"
+    }
                 "document_ids": doc_ids,
                 "confianza": "alta" if len(matching_docs) >= 3 else "media"
             })
