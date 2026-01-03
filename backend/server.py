@@ -1187,45 +1187,73 @@ async def auto_split_all_multipage(authorization: str = Header(None)):
 
 # Batch Processing Endpoints
 @api_router.get("/documents/suggest-batches")
-async def suggest_batches(authorization: str = Header(None)):
-    """Sugiere lotes automáticamente basándose en correlaciones de documentos analizados"""
+async def suggest_batches(authorization: str = Header(None), use_ai: bool = True):
+    """
+    Sugiere lotes automáticamente basándose en correlaciones de documentos analizados.
+    
+    Si use_ai=True (default), usa Claude Sonnet 4.5 para correlación inteligente.
+    Si use_ai=False, usa el algoritmo básico de coincidencia por valor y tercero.
+    """
     user = await get_current_user(authorization)
     
     logging.info("=== INICIO suggest_batches ===")
+    logging.info(f"Usando IA: {use_ai}")
     
     # Obtener documentos analizados (sin lote asignado)
     docs = await db.documents.find(
         {
-            "status": {"$in": ["en_proceso", "analizado"]},  # Usar strings directamente
-            "batch_id": {"$exists": False}
+            "status": {"$in": ["en_proceso", "analizado", "validado"]},
+            "batch_id": {"$exists": False},
+            "$or": [
+                {"tercero": {"$exists": True, "$ne": None}},
+                {"valor": {"$exists": True, "$ne": None}}
+            ]
         },
         {"_id": 0, "file_data": 0}
     ).to_list(1000)
     
     logging.info(f"Documentos encontrados: {len(docs)}")
     
-    if not docs:
-        return {"suggested_batches": [], "message": "No hay documentos analizados disponibles"}
+    # Filtrar solo documentos con tercero Y valor
+    docs_with_data = [d for d in docs if d.get('tercero') and d.get('valor')]
+    logging.info(f"Documentos con tercero y valor: {len(docs_with_data)}")
     
-    # Agrupar por coincidencias
+    if not docs_with_data:
+        return {"suggested_batches": [], "message": "No hay documentos analizados con datos extraídos"}
+    
+    # USAR CLAUDE PARA CORRELACIÓN INTELIGENTE
+    if use_ai and len(docs_with_data) >= 2:
+        logging.info("Usando Claude Sonnet 4.5 para correlación inteligente...")
+        correlations = await correlate_documents_with_claude(docs_with_data)
+        
+        if correlations:
+            await log_action(user, "SUGGEST_BATCHES_AI", f"Claude sugirió {len(correlations)} lotes")
+            return {
+                "suggested_batches": correlations,
+                "total_suggestions": len(correlations),
+                "message": f"Claude encontró {len(correlations)} grupos correlacionados",
+                "method": "claude_ai"
+            }
+        else:
+            logging.warning("Claude no encontró correlaciones, usando método básico...")
+    
+    # MÉTODO BÁSICO (fallback o si use_ai=False)
     correlations = []
     processed_docs = set()
     
-    for doc in docs:
+    for doc in docs_with_data:
         if doc['id'] in processed_docs:
             continue
             
-        # Buscar documentos que coincidan
         valor = doc.get('valor')
         tercero = doc.get('tercero')
         
         if not valor or not tercero:
             continue
         
-        # Buscar coincidencias (mismo tercero y valor similar ±1%)
         matching_docs = [doc]
         
-        for other_doc in docs:
+        for other_doc in docs_with_data:
             if other_doc['id'] == doc['id'] or other_doc['id'] in processed_docs:
                 continue
             
@@ -1235,8 +1263,7 @@ async def suggest_batches(authorization: str = Header(None)):
             if not other_valor or not other_tercero:
                 continue
             
-            # Verificar coincidencias
-            # Tercero: buscar coincidencia parcial (al menos una palabra en común con más de 3 caracteres)
+            # Tercero: coincidencia parcial
             tercero_words = set(w for w in tercero.upper().split() if len(w) > 3)
             other_tercero_words = set(w for w in other_tercero.upper().split() if len(w) > 3)
             tercero_match = len(tercero_words.intersection(other_tercero_words)) >= 1
@@ -1248,10 +1275,8 @@ async def suggest_batches(authorization: str = Header(None)):
                 matching_docs.append(other_doc)
                 processed_docs.add(other_doc['id'])
         
-        if len(matching_docs) >= 2:  # Al menos 2 documentos relacionados
+        if len(matching_docs) >= 2:
             processed_docs.add(doc['id'])
-            
-            # Verificar tipos de documentos
             tipos = {d['tipo_documento'] for d in matching_docs}
             doc_ids = [d['id'] for d in matching_docs]
             
@@ -1264,7 +1289,7 @@ async def suggest_batches(authorization: str = Header(None)):
                 "confianza": "alta" if len(matching_docs) >= 3 else "media"
             })
     
-    await log_action(user, "SUGGEST_BATCHES", f"Se sugirieron {len(correlations)} lotes por correlación")
+    await log_action(user, "SUGGEST_BATCHES", f"Se sugirieron {len(correlations)} lotes por correlación básica")
     
     return {
         "suggested_batches": correlations,
