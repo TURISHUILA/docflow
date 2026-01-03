@@ -419,7 +419,7 @@ def split_pdf_to_pages(pdf_data: bytes) -> List[bytes]:
 async def correlate_documents_with_claude(documents: List[Dict]) -> List[Dict]:
     """
     Usa Claude Sonnet 4.5 para correlación inteligente de documentos.
-    Claude puede entender que "MOVISTAR" y "COLOMBIA TELECOMUNICACIONES" son el mismo proveedor.
+    Versión mejorada con parámetros más flexibles.
     """
     if not documents:
         return []
@@ -429,17 +429,45 @@ async def correlate_documents_with_claude(documents: List[Dict]) -> List[Dict]:
             api_key=EMERGENT_LLM_KEY,
             session_id=str(uuid.uuid4()),
             system_message="""Eres un experto en correlación de documentos financieros colombianos.
-Tu tarea es encontrar documentos que pertenecen a la MISMA transacción de pago.
+Tu tarea es encontrar documentos que pertenecen a la MISMA transacción de pago o al MISMO proveedor/tercero.
 
-REGLAS DE CORRELACIÓN:
-1. Los documentos relacionados tienen el MISMO VALOR (tolerancia ±1%)
-2. El TERCERO puede tener nombres diferentes pero referirse a la misma empresa:
-   - "MOVISTAR" = "COLOMBIA TELECOMUNICACIONES"
-   - "BEDS ON LINE" = "HOTELBEDS" 
-   - "COLASISTENCIA" = "COLOMBIANA DE ASISTENCIA"
-3. Un lote completo idealmente tiene: Comprobante de Egreso + Cuenta por Pagar + Factura + Soporte de Pago
-4. Prioriza agrupar documentos con el MISMO VALOR aunque los terceros tengan nombres diferentes
-5. Considera NIT, referencias bancarias y fechas cercanas como pistas adicionales"""
+CRITERIOS DE CORRELACIÓN (en orden de prioridad):
+
+1. **MISMO NIT** = ALTA CONFIANZA
+   - Si dos documentos tienen el mismo NIT, son del mismo proveedor
+   - Ejemplo: NIT 901244056 = ASSIST UNO (aunque el nombre varíe)
+
+2. **MISMO VALOR EXACTO o MUY CERCANO (±5%)** = ALTA CONFIANZA
+   - Documentos con el mismo monto probablemente son de la misma transacción
+   - Tolerancia del 5% para cubrir diferencias por impuestos/retenciones
+
+3. **MISMO TERCERO** (nombres similares) = MEDIA-ALTA CONFIANZA
+   - Reconocer variaciones del mismo proveedor:
+     * "MOVISTAR" = "COLOMBIA TELECOMUNICACIONES" = "TELEFONICA"
+     * "BEDS ON LINE" = "HOTELBEDS" = "HOTELBEDS USA"
+     * "COLASISTENCIA" = "COLOMBIANA DE ASISTENCIA"
+     * "CIC COLOMBIA TRAVEL" = "CIC TRAVEL"
+     * "ASSIST UNO" = "ASSIST 1" = "ASSISTUNO"
+
+4. **FECHAS CERCANAS (±30 días)** = Criterio de apoyo
+   - Documentos del mismo mes/período suelen estar relacionados
+
+5. **REFERENCIAS BANCARIAS o NÚMEROS DE DOCUMENTO** = ALTA CONFIANZA
+   - Si comparten referencia bancaria, están relacionados
+
+6. **SUMA DE FACTURAS = VALOR DEL PAGO**
+   - Múltiples facturas pequeñas pueden sumar el valor de un comprobante de egreso
+   - Ejemplo: 3 facturas de $78,894 + $45,655 + $68,459 ≈ CXP de $193,000
+
+TIPOS DE AGRUPACIÓN:
+- GRUPO COMPLETO: Comprobante Egreso + Cuenta por Pagar + Factura(s) + Soporte de Pago
+- GRUPO PARCIAL: Al menos 2 documentos relacionados del mismo tercero
+- GRUPO POR PROVEEDOR: Múltiples documentos del mismo NIT/tercero aunque tengan valores diferentes
+
+IMPORTANTE: 
+- Prioriza encontrar TODAS las correlaciones posibles, no solo las perfectas
+- Es mejor agrupar de más que dejar documentos sueltos
+- Agrupa por PROVEEDOR si no hay coincidencia exacta de valor"""
         ).with_model("anthropic", "claude-sonnet-4-5-20250929")
         
         # Preparar resumen de documentos para Claude
@@ -453,28 +481,34 @@ REGLAS DE CORRELACIÓN:
                 "valor": doc.get("valor"),
                 "nit": doc.get("nit"),
                 "fecha": doc.get("fecha"),
-                "numero_documento": doc.get("numero_documento")
+                "numero_documento": doc.get("numero_documento"),
+                "referencia_bancaria": doc.get("referencia_bancaria")
             })
         
-        prompt = f"""Analiza estos {len(docs_summary)} documentos financieros y agrúpalos por transacciones relacionadas.
+        prompt = f"""Analiza estos {len(docs_summary)} documentos financieros y agrúpalos.
 
-DOCUMENTOS:
+DOCUMENTOS DISPONIBLES:
 {json.dumps(docs_summary, indent=2, ensure_ascii=False)}
 
 INSTRUCCIONES:
-1. Agrupa documentos que pertenezcan a la MISMA transacción de pago
-2. El criterio principal es que tengan el MISMO VALOR (±1%)
-3. Considera que el mismo proveedor puede aparecer con nombres diferentes
-4. Cada grupo debe tener al menos 2 documentos
+1. Agrupa documentos que pertenezcan al MISMO PROVEEDOR o MISMA TRANSACCIÓN
+2. Usa TODOS los criterios: NIT, valor (±5%), tercero similar, fechas cercanas, referencias
+3. Si un proveedor tiene múltiples transacciones, crea UN GRUPO POR TRANSACCIÓN (mismo valor)
+4. Si no hay coincidencia de valor pero sí de NIT/tercero, agrupa por proveedor
+5. Busca si la SUMA de facturas pequeñas coincide con un pago mayor
+6. Cada grupo debe tener al menos 2 documentos
+7. MAXIMIZA las correlaciones - es mejor agrupar que dejar sueltos
 
-Responde SOLO con este JSON (sin explicaciones):
+Responde SOLO con este JSON (sin explicaciones ni texto adicional):
 {{
     "grupos": [
         {{
-            "tercero_principal": "nombre del tercero/proveedor",
-            "valor": 12345.67,
+            "tercero_principal": "nombre normalizado del tercero",
+            "nit": "NIT si está disponible",
+            "valor_referencia": 12345.67,
+            "tipo_correlacion": "valor_exacto" | "mismo_nit" | "mismo_tercero" | "suma_facturas",
             "confianza": "alta" | "media" | "baja",
-            "razon": "breve explicación de por qué están relacionados",
+            "razon": "explicación breve de por qué están relacionados",
             "document_ids": ["id1", "id2", "id3"]
         }}
     ]
@@ -494,15 +528,20 @@ Responde SOLO con este JSON (sin explicaciones):
             # Convertir al formato esperado
             correlations = []
             for grupo in grupos:
+                doc_ids = grupo.get("document_ids", [])
+                tipos = list(set(
+                    next((d.get("tipo_documento") for d in documents if d.get("id") == doc_id), "")
+                    for doc_id in doc_ids
+                ))
+                
                 correlations.append({
                     "tercero": grupo.get("tercero_principal", ""),
-                    "valor": grupo.get("valor", 0),
-                    "num_documentos": len(grupo.get("document_ids", [])),
-                    "tipos_documentos": list(set(
-                        next((d.get("tipo_documento") for d in documents if d.get("id") == doc_id), "")
-                        for doc_id in grupo.get("document_ids", [])
-                    )),
-                    "document_ids": grupo.get("document_ids", []),
+                    "nit": grupo.get("nit", ""),
+                    "valor": grupo.get("valor_referencia", 0),
+                    "num_documentos": len(doc_ids),
+                    "tipos_documentos": tipos,
+                    "document_ids": doc_ids,
+                    "tipo_correlacion": grupo.get("tipo_correlacion", "valor_exacto"),
                     "confianza": grupo.get("confianza", "media"),
                     "razon_correlacion": grupo.get("razon", "")
                 })
@@ -516,6 +555,151 @@ Responde SOLO con este JSON (sin explicaciones):
     except Exception as e:
         logging.error(f"Error en correlación con Claude: {str(e)}")
         return []
+
+# Función de correlación básica mejorada (fallback)
+def correlate_documents_basic(documents: List[Dict]) -> List[Dict]:
+    """
+    Correlación básica mejorada con múltiples criterios.
+    Se usa como fallback si Claude falla.
+    """
+    if not documents:
+        return []
+    
+    correlations = []
+    processed_ids = set()
+    
+    # Indexar por NIT para búsqueda rápida
+    by_nit = {}
+    for doc in documents:
+        nit = doc.get('nit', '').replace('-', '').replace('.', '').strip()
+        if nit and len(nit) >= 6:
+            if nit not in by_nit:
+                by_nit[nit] = []
+            by_nit[nit].append(doc)
+    
+    # Indexar por valor (redondeado)
+    by_valor = {}
+    for doc in documents:
+        valor = doc.get('valor')
+        if valor:
+            valor_key = round(valor, -2)  # Redondear a centenas
+            if valor_key not in by_valor:
+                by_valor[valor_key] = []
+            by_valor[valor_key].append(doc)
+    
+    # PASO 1: Correlacionar por NIT (alta confianza)
+    for nit, docs_nit in by_nit.items():
+        if len(docs_nit) >= 2:
+            # Agrupar por valor dentro del mismo NIT
+            sub_by_valor = {}
+            for doc in docs_nit:
+                if doc['id'] in processed_ids:
+                    continue
+                valor = doc.get('valor', 0)
+                valor_key = round(valor, -2) if valor else 0
+                if valor_key not in sub_by_valor:
+                    sub_by_valor[valor_key] = []
+                sub_by_valor[valor_key].append(doc)
+            
+            for valor_key, grupo in sub_by_valor.items():
+                if len(grupo) >= 2:
+                    for d in grupo:
+                        processed_ids.add(d['id'])
+                    
+                    correlations.append({
+                        "tercero": grupo[0].get('tercero', ''),
+                        "nit": nit,
+                        "valor": valor_key,
+                        "num_documentos": len(grupo),
+                        "tipos_documentos": list(set(d.get('tipo_documento', '') for d in grupo)),
+                        "document_ids": [d['id'] for d in grupo],
+                        "tipo_correlacion": "mismo_nit",
+                        "confianza": "alta",
+                        "razon_correlacion": f"Mismo NIT: {nit}"
+                    })
+    
+    # PASO 2: Correlacionar por valor exacto (±5%)
+    for doc in documents:
+        if doc['id'] in processed_ids:
+            continue
+        
+        valor = doc.get('valor')
+        tercero = doc.get('tercero', '').upper()
+        
+        if not valor:
+            continue
+        
+        matching = [doc]
+        
+        for other in documents:
+            if other['id'] == doc['id'] or other['id'] in processed_ids:
+                continue
+            
+            other_valor = other.get('valor')
+            if not other_valor:
+                continue
+            
+            # Tolerancia del 5%
+            if abs(valor - other_valor) / valor <= 0.05:
+                matching.append(other)
+                processed_ids.add(other['id'])
+        
+        if len(matching) >= 2:
+            processed_ids.add(doc['id'])
+            correlations.append({
+                "tercero": tercero,
+                "nit": doc.get('nit', ''),
+                "valor": valor,
+                "num_documentos": len(matching),
+                "tipos_documentos": list(set(d.get('tipo_documento', '') for d in matching)),
+                "document_ids": [d['id'] for d in matching],
+                "tipo_correlacion": "valor_exacto",
+                "confianza": "alta" if len(matching) >= 3 else "media",
+                "razon_correlacion": f"Valor similar: ${valor:,.2f}"
+            })
+    
+    # PASO 3: Correlacionar por tercero similar (palabras en común)
+    remaining = [d for d in documents if d['id'] not in processed_ids and d.get('tercero')]
+    
+    for doc in remaining:
+        if doc['id'] in processed_ids:
+            continue
+        
+        tercero = doc.get('tercero', '').upper()
+        tercero_words = set(w for w in tercero.split() if len(w) > 3)
+        
+        if not tercero_words:
+            continue
+        
+        matching = [doc]
+        
+        for other in remaining:
+            if other['id'] == doc['id'] or other['id'] in processed_ids:
+                continue
+            
+            other_tercero = other.get('tercero', '').upper()
+            other_words = set(w for w in other_tercero.split() if len(w) > 3)
+            
+            # Al menos 1 palabra significativa en común
+            if len(tercero_words & other_words) >= 1:
+                matching.append(other)
+                processed_ids.add(other['id'])
+        
+        if len(matching) >= 2:
+            processed_ids.add(doc['id'])
+            correlations.append({
+                "tercero": tercero,
+                "nit": doc.get('nit', ''),
+                "valor": doc.get('valor', 0),
+                "num_documentos": len(matching),
+                "tipos_documentos": list(set(d.get('tipo_documento', '') for d in matching)),
+                "document_ids": [d['id'] for d in matching],
+                "tipo_correlacion": "mismo_tercero",
+                "confianza": "media",
+                "razon_correlacion": f"Tercero similar: {tercero[:30]}"
+            })
+    
+    return correlations
 
 # Auth Endpoints
 @api_router.post("/auth/register", response_model=User)
