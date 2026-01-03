@@ -1203,10 +1203,9 @@ async def suggest_batches(authorization: str = Header(None), use_ai: bool = True
     docs = await db.documents.find(
         {
             "status": {"$in": ["en_proceso", "analizado", "validado"]},
-            "batch_id": {"$exists": False},
             "$or": [
-                {"tercero": {"$exists": True, "$ne": None}},
-                {"valor": {"$exists": True, "$ne": None}}
+                {"batch_id": {"$exists": False}},
+                {"batch_id": None}
             ]
         },
         {"_id": 0, "file_data": 0}
