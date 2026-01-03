@@ -594,6 +594,16 @@ const Batches = () => {
                       </div>
                     </div>
                     
+                    {/* Razón de correlación (cuando viene de Claude) */}
+                    {suggestion.razon_correlacion && (
+                      <div className="p-2 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <p className="text-xs text-indigo-600 flex items-center gap-1">
+                          <Sparkles size={12} />
+                          <span className="font-medium">IA:</span> {suggestion.razon_correlacion}
+                        </p>
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2 pt-2">
                       <Button
                         onClick={() => createBatchFromSuggestion(suggestion, index)}
