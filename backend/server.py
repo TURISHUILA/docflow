@@ -416,6 +416,107 @@ def split_pdf_to_pages(pdf_data: bytes) -> List[bytes]:
         logging.error(f"Error splitting PDF: {str(e)}")
     return pages
 
+async def correlate_documents_with_claude(documents: List[Dict]) -> List[Dict]:
+    """
+    Usa Claude Sonnet 4.5 para correlación inteligente de documentos.
+    Claude puede entender que "MOVISTAR" y "COLOMBIA TELECOMUNICACIONES" son el mismo proveedor.
+    """
+    if not documents:
+        return []
+    
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=str(uuid.uuid4()),
+            system_message="""Eres un experto en correlación de documentos financieros colombianos.
+Tu tarea es encontrar documentos que pertenecen a la MISMA transacción de pago.
+
+REGLAS DE CORRELACIÓN:
+1. Los documentos relacionados tienen el MISMO VALOR (tolerancia ±1%)
+2. El TERCERO puede tener nombres diferentes pero referirse a la misma empresa:
+   - "MOVISTAR" = "COLOMBIA TELECOMUNICACIONES"
+   - "BEDS ON LINE" = "HOTELBEDS" 
+   - "COLASISTENCIA" = "COLOMBIANA DE ASISTENCIA"
+3. Un lote completo idealmente tiene: Comprobante de Egreso + Cuenta por Pagar + Factura + Soporte de Pago
+4. Prioriza agrupar documentos con el MISMO VALOR aunque los terceros tengan nombres diferentes
+5. Considera NIT, referencias bancarias y fechas cercanas como pistas adicionales"""
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        
+        # Preparar resumen de documentos para Claude
+        docs_summary = []
+        for doc in documents:
+            docs_summary.append({
+                "id": doc.get("id"),
+                "filename": doc.get("filename"),
+                "tipo": doc.get("tipo_documento"),
+                "tercero": doc.get("tercero"),
+                "valor": doc.get("valor"),
+                "nit": doc.get("nit"),
+                "fecha": doc.get("fecha"),
+                "numero_documento": doc.get("numero_documento")
+            })
+        
+        prompt = f"""Analiza estos {len(docs_summary)} documentos financieros y agrúpalos por transacciones relacionadas.
+
+DOCUMENTOS:
+{json.dumps(docs_summary, indent=2, ensure_ascii=False)}
+
+INSTRUCCIONES:
+1. Agrupa documentos que pertenezcan a la MISMA transacción de pago
+2. El criterio principal es que tengan el MISMO VALOR (±1%)
+3. Considera que el mismo proveedor puede aparecer con nombres diferentes
+4. Cada grupo debe tener al menos 2 documentos
+
+Responde SOLO con este JSON (sin explicaciones):
+{{
+    "grupos": [
+        {{
+            "tercero_principal": "nombre del tercero/proveedor",
+            "valor": 12345.67,
+            "confianza": "alta" | "media" | "baja",
+            "razon": "breve explicación de por qué están relacionados",
+            "document_ids": ["id1", "id2", "id3"]
+        }}
+    ]
+}}"""
+
+        message = UserMessage(text=prompt)
+        response = await chat.send_message(message)
+        
+        # Parsear respuesta
+        response_clean = response.strip()
+        json_match = re.search(r'\{[\s\S]*\}', response_clean)
+        
+        if json_match:
+            data = json.loads(json_match.group())
+            grupos = data.get("grupos", [])
+            
+            # Convertir al formato esperado
+            correlations = []
+            for grupo in grupos:
+                correlations.append({
+                    "tercero": grupo.get("tercero_principal", ""),
+                    "valor": grupo.get("valor", 0),
+                    "num_documentos": len(grupo.get("document_ids", [])),
+                    "tipos_documentos": list(set(
+                        next((d.get("tipo_documento") for d in documents if d.get("id") == doc_id), "")
+                        for doc_id in grupo.get("document_ids", [])
+                    )),
+                    "document_ids": grupo.get("document_ids", []),
+                    "confianza": grupo.get("confianza", "media"),
+                    "razon_correlacion": grupo.get("razon", "")
+                })
+            
+            logging.info(f"Claude encontró {len(correlations)} correlaciones")
+            return correlations
+        else:
+            logging.warning(f"No se pudo parsear respuesta de Claude: {response_clean[:200]}")
+            return []
+            
+    except Exception as e:
+        logging.error(f"Error en correlación con Claude: {str(e)}")
+        return []
+
 # Auth Endpoints
 @api_router.post("/auth/register", response_model=User)
 async def register(user_data: UserCreate, authorization: str = Header(None)):
